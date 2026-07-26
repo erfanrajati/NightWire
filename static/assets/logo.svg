@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1040 300" role="img" aria-labelledby="title desc">
+  <title id="title">NightWire</title>
+  <desc id="desc">An aurora-colored NightWire logo with a glowing network waveform.</desc>
+
+  <defs>
+    <linearGradient id="aurora" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5FFBF1"/>
+      <stop offset="0.34" stop-color="#65B5FF"/>
+      <stop offset="0.68" stop-color="#9B7BFF"/>
+      <stop offset="1" stop-color="#FF7BCB"/>
+    </linearGradient>
+    <linearGradient id="aurora-reverse" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#68F7C2"/>
+      <stop offset="0.48" stop-color="#71D8FF"/>
+      <stop offset="1" stop-color="#B07BFF"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="45%" r="68%">
+      <stop offset="0" stop-color="#6AE8FF" stop-opacity="0.22"/>
+      <stop offset="0.55" stop-color="#9877FF" stop-opacity="0.09"/>
+      <stop offset="1" stop-color="#FF7BCB" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft-glow" x="-80%" y="-80%" width="260%" height="260%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="word-glow" x="-20%" y="-60%" width="140%" height="220%" color-interpolation-filters="sRGB">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+      <feComponentTransfer in="blur" result="faint">
+        <feFuncA type="linear" slope="0.28"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="faint"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Transparent canvas; no background rectangle. -->
+  <g transform="translate(28 28)">
+    <circle cx="122" cy="122" r="122" fill="url(#halo)"/>
+    <rect x="18" y="18" width="208" height="208" rx="58" fill="none" stroke="url(#aurora)" stroke-width="3" stroke-opacity="0.62"/>
+    <rect x="29" y="29" width="186" height="186" rx="49" fill="none" stroke="url(#aurora-reverse)" stroke-width="1.5" stroke-opacity="0.24"/>
+
+    <g filter="url(#soft-glow)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M67 145V111" stroke="#66F6D4" stroke-width="14"/>
+      <path d="M103 166V79" stroke="url(#aurora-reverse)" stroke-width="14"/>
+      <path d="M141 151V96" stroke="url(#aurora)" stroke-width="14"/>
+      <path d="M178 170V118" stroke="#B27CFF" stroke-width="14"/>
+    </g>
+
+    <path d="M64 105C85 91 91 91 104 82C119 72 132 80 143 94C154 107 164 111 182 115" fill="none" stroke="url(#aurora)" stroke-width="4" stroke-linecap="round" stroke-opacity="0.9"/>
+
+    <g fill="url(#aurora)" filter="url(#soft-glow)">
+      <circle cx="67" cy="105" r="5.5"/>
+      <circle cx="104" cy="82" r="5.5"/>
+      <circle cx="143" cy="94" r="5.5"/>
+      <circle cx="181" cy="115" r="5.5"/>
+    </g>
+  </g>
+
+  <g filter="url(#word-glow)">
+    <text x="305" y="178"
+          font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+          font-size="112"
+          font-weight="800"
+          letter-spacing="-5"
+          fill="url(#aurora)">NightWire</text>
+  </g>
+  <text x="311" y="222"
+        font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        font-size="20"
+        font-weight="700"
+        letter-spacing="7"
+        fill="#7D97B8">LOCAL SHARING NODE</text>
+</svg>
