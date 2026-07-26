@@ -1,0 +1,16 @@
+app.py
+pyproject.toml
+uv.lock
+VERSION
+README.md
+.gitignore
+run.sh
+run.bat
+install.sh
+update-existing.sh
+release-manifest.txt
+static/index.html
+static/styles.css
+static/app.js
+tests/test_app.py
+files/.gitkeep

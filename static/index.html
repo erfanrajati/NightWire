@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, shrink-to-fit=no">
+  <meta name="theme-color" content="#08101c">
+  <title>NightWire — Files</title>
+  <link rel="stylesheet" href="/static/styles.css?v=1.0.2">
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="/files" data-route-link="files" aria-label="NightWire files">
+        <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+        <div>
+          <p class="eyebrow">LOCAL SHARING NODE</p>
+          <h1>Night<span>Wire</span></h1>
+        </div>
+      </a>
+      <div class="status-pill"><i></i><span id="statusText">Connecting</span></div>
+    </header>
+
+    <nav class="main-navigation" aria-label="NightWire pages">
+      <a class="nav-item" href="/files" data-route="files">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h7l2 2h9v11H3zM3 7V4h7l2 3"></path></svg>
+        <span><strong>Files</strong><small>Upload &amp; download</small></span>
+      </a>
+      <a class="nav-item" href="/clipboard" data-route="clipboard">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6m-7 3h8m-9 3h10M8 3h8v4H8zM6 5H5a2 2 0 0 0-2 2v13h18V7a2 2 0 0 0-2-2h-1"></path></svg>
+        <span><strong>Clipboard</strong><small>Shared text manager</small></span>
+      </a>
+      <a class="nav-item" href="/clients" data-route="clients">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8.5-1a3.5 3.5 0 1 0 0-7M2 21a6 6 0 0 1 12 0m1-7.5A5.5 5.5 0 0 1 22 19"></path></svg>
+        <span><strong>Clients</strong><small>Devices &amp; QR</small></span>
+      </a>
+    </nav>
+
+    <section id="filesPage" class="page-view" data-page="files" hidden>
+      <section class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">FILE SHARING</p>
+          <h2>Move files at full LAN speed</h2>
+          <p class="subtitle">Uploads stream directly to disk. Choose optional protection before uploading; passwords are permanent, while auto-delete can be changed later by any connected client.</p>
+          <div class="quick-stats">
+            <div><span id="fileCount">0</span><small>FILES</small></div>
+            <div><span id="storageFree">—</span><small>FREE</small></div>
+            <div><span id="protectedFileCount">0</span><small>LOCKED</small></div>
+          </div>
+        </div>
+
+        <section id="dropzone" class="dropzone" tabindex="0" aria-label="Upload files">
+          <input id="fileInput" type="file" multiple hidden>
+          <div class="upload-emblem" aria-hidden="true">
+            <svg viewBox="0 0 64 64"><path class="upload-cloud" d="M19.5 48.5h27A11.5 11.5 0 0 0 48 25.6 16.5 16.5 0 0 0 16.7 21 13.8 13.8 0 0 0 19.5 48.5Z"></path><path class="upload-arrow" d="M32 43V25m0 0-7 7m7-7 7 7"></path></svg>
+          </div>
+          <h3>Drop files to transmit</h3>
+          <p>or <button id="browseButton" type="button">browse your device</button></p>
+          <small>New files default to unlimited retention and no password</small>
+          <div class="creation-options upload-options" data-upload-control>
+            <label class="option-field">
+              <span>Auto-delete</span>
+              <select id="fileExpiryPreset">
+                <option value="0" selected>Unlimited / never</option>
+                <option value="600">10 minutes</option>
+                <option value="1800">30 minutes</option>
+                <option value="3600">1 hour</option>
+                <option value="21600">6 hours</option>
+                <option value="86400">24 hours</option>
+                <option value="custom">Custom duration…</option>
+              </select>
+            </label>
+            <label id="fileCustomExpiryWrap" class="custom-duration hidden">
+              <input id="fileCustomExpiry" type="number" min="1" max="525600" step="1" value="60" inputmode="numeric">
+              <span>minutes</span>
+            </label>
+            <div class="password-pair">
+              <label class="option-field">
+                <span>Optional password</span>
+                <input id="filePassword" type="password" maxlength="256" autocomplete="new-password" placeholder="Leave empty for no password">
+              </label>
+              <label id="filePasswordConfirmWrap" class="option-field hidden">
+                <span>Confirm password</span>
+                <input id="filePasswordConfirm" type="password" maxlength="256" autocomplete="new-password">
+              </label>
+            </div>
+            <small class="immutable-note">A password set here cannot be changed or removed after upload.</small>
+          </div>
+        </section>
+      </section>
+
+      <section id="transferPanel" class="panel transfer-panel hidden">
+        <div class="panel-heading">
+          <div><p class="eyebrow">ACTIVE TRANSFERS</p><h3>Upload queue</h3></div>
+          <span id="queueSummary" class="muted">0 queued</span>
+        </div>
+        <div id="transferList" class="transfer-list"></div>
+      </section>
+
+      <section class="panel library-panel">
+        <div class="panel-heading library-heading">
+          <div><p class="eyebrow">SHARED DIRECTORY</p><h3>Available files</h3></div>
+          <div class="library-actions">
+            <label class="search-box">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.3-4.3m2.3-5.2a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"></path></svg>
+              <input id="searchInput" type="search" placeholder="Filter files" autocomplete="off">
+            </label>
+            <button id="refreshButton" class="icon-button" type="button" title="Refresh" aria-label="Refresh files">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M6.1 9A7 7 0 0 1 18 6.5L20 11M4 13l2 4.5A7 7 0 0 0 17.9 15"></path></svg>
+            </button>
+          </div>
+        </div>
+        <div class="manager-hint"><strong>Lifecycle controls</strong><span>Passwords are fixed at upload. Any connected client may edit only the auto-delete countdown; protected downloads and deletion still require the password.</span></div>
+        <div id="fileList" class="file-list"></div>
+        <div id="emptyState" class="empty-state">
+          <div class="empty-icon">∅</div><h4>No files available</h4><p>Upload something to make it visible to every device on this network.</p>
+        </div>
+      </section>
+    </section>
+
+    <section id="clipboardPage" class="page-view" data-page="clipboard" hidden>
+      <div class="page-intro">
+        <div>
+          <p class="eyebrow">SHARED CLIPBOARD</p>
+          <h2>Text available across every client</h2>
+          <p>Shared text defaults to a 10-minute countdown. Choose optional protection before sharing; passwords are permanent, while the countdown remains editable by any connected client.</p>
+        </div>
+        <span id="clipboardSummary" class="clients-online-badge">0 items</span>
+      </div>
+
+      <section class="panel clipboard-panel" aria-labelledby="clipboardTitle">
+        <div class="panel-heading clipboard-heading">
+          <div><p class="eyebrow">NEW SHARED TEXT</p><h3 id="clipboardTitle">Paste or type something</h3></div>
+          <span class="default-note">Default: deletes in 10 minutes</span>
+        </div>
+
+        <div id="clipboardRecommendation" class="clipboard-recommendation hidden" role="status">
+          <div class="recommendation-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 5h6m-7 3h8m-9 3h10M8 3h8v4H8zM6 5H5a2 2 0 0 0-2 2v13h18V7a2 2 0 0 0-2-2h-1"></path></svg></div>
+          <div class="recommendation-copy"><strong>Copied text detected</strong><p id="clipboardRecommendationPreview"></p></div>
+          <div class="recommendation-actions"><button id="dismissClipboardButton" class="text-button" type="button">Dismiss</button><button id="shareDetectedClipboardButton" class="primary-button compact" type="button">Share it</button></div>
+        </div>
+
+        <div class="clipboard-workspace">
+          <label class="clipboard-compose">
+            <span>Text to share</span>
+            <textarea id="clipboardInput" rows="7" maxlength="32768" placeholder="Paste text here, then share it with every NightWire browser…"></textarea>
+            <small id="clipboardCharacterCount">0 / 32,768</small>
+          </label>
+          <div class="clipboard-controls">
+            <button id="watchClipboardButton" class="secondary-button" type="button">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5c5.5 0 9 7 9 7s-3.5 7-9 7-9-7-9-7 3.5-7 9-7Zm0 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"></path></svg>
+              Watch my clipboard
+            </button>
+            <p id="clipboardWatchHint">Paste anywhere on this page and NightWire will suggest sharing it. Automatic watching needs browser permission and may require HTTPS or localhost.</p>
+            <div class="creation-options clipboard-options">
+              <label class="option-field">
+                <span>Auto-delete</span>
+                <select id="clipboardExpiryPreset">
+                  <option value="300">5 minutes</option>
+                  <option value="600" selected>10 minutes</option>
+                  <option value="1800">30 minutes</option>
+                  <option value="3600">1 hour</option>
+                  <option value="21600">6 hours</option>
+                  <option value="86400">24 hours</option>
+                  <option value="0">Unlimited / never</option>
+                  <option value="custom">Custom duration…</option>
+                </select>
+              </label>
+              <label id="clipboardCustomExpiryWrap" class="custom-duration hidden">
+                <input id="clipboardCustomExpiry" type="number" min="1" max="525600" step="1" value="10" inputmode="numeric">
+                <span>minutes</span>
+              </label>
+              <div class="password-pair">
+                <label class="option-field">
+                  <span>Optional password</span>
+                  <input id="clipboardPassword" type="password" maxlength="256" autocomplete="new-password" placeholder="Leave empty for no password">
+                </label>
+                <label id="clipboardPasswordConfirmWrap" class="option-field hidden">
+                  <span>Confirm password</span>
+                  <input id="clipboardPasswordConfirm" type="password" maxlength="256" autocomplete="new-password">
+                </label>
+              </div>
+              <small class="immutable-note">A password set here cannot be changed or removed after sharing.</small>
+            </div>
+            <button id="shareClipboardButton" class="primary-button" type="button" disabled>Share text</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel clipboard-history-panel">
+        <div class="panel-heading">
+          <div><p class="eyebrow">CLIPBOARD MANAGER</p><h3>Recent shared text</h3></div>
+          <span class="muted">Newest first</span>
+        </div>
+        <div class="manager-hint"><strong>Lifecycle controls</strong><span>Passwords are fixed when text is shared. Any connected client may edit only the auto-delete countdown; protected access and deletion still require the password.</span></div>
+        <div id="clipboardList" class="clipboard-list" aria-live="polite"></div>
+        <div id="clipboardEmptyState" class="empty-state clipboard-empty-state">
+          <div class="empty-icon">⌘</div><h4>The shared clipboard is empty</h4><p>Share text above to make it available to connected devices.</p>
+        </div>
+      </section>
+    </section>
+
+    <section id="clientsPage" class="page-view" data-page="clients" hidden>
+      <div class="page-intro">
+        <div><p class="eyebrow">CLIENT MANAGEMENT</p><h2>Connect and monitor your devices</h2><p>Open NightWire from another device on the same network, or scan the QR code below.</p></div>
+        <span id="clientsOnlineBadge" class="clients-online-badge">1 online</span>
+      </div>
+
+      <section class="connection-card" aria-label="Network connection address">
+        <div class="connection-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 16.5a10 10 0 0 1 14 0M8.5 13a5.2 5.2 0 0 1 7 0M12 19.2h.01"></path></svg></div>
+        <div class="connection-copy"><span class="eyebrow">CONNECT FROM ANOTHER DEVICE</span><strong id="networkAddress" title="Detecting network address">Detecting…</strong><span id="networkAlternates" class="network-alternates hidden"></span></div>
+        <div class="connection-actions"><button id="copyAddressButton" class="connection-button" type="button" disabled>Copy address</button></div>
+      </section>
+
+      <div class="clients-layout">
+        <section class="panel qr-connect-panel" aria-labelledby="qrConnectTitle">
+          <div class="panel-heading"><div><p class="eyebrow">NEW CONNECTION</p><h3 id="qrConnectTitle">Scan to open NightWire</h3></div><span class="muted">Same LAN required</span></div>
+          <div class="inline-qr-content">
+            <div class="qr-frame inline-qr-frame"><img id="qrImage" alt="QR code for the NightWire network address"><div id="qrLoading" class="qr-loading">Generating QR code…</div></div>
+            <div class="inline-qr-copy"><p>Use a phone camera or QR scanner. The device must be connected to the same Wi-Fi, hotspot, or Ethernet network.</p><strong id="qrAddress" class="qr-address">Detecting…</strong><button id="copyQrAddressButton" class="qr-copy-button" type="button" disabled>Copy connection address</button></div>
+          </div>
+        </section>
+
+        <section class="panel devices-panel" aria-labelledby="devicesTitle">
+          <div class="panel-heading"><div><p class="eyebrow">ONLINE DEVICES</p><h3 id="devicesTitle">Connected to this server</h3></div><span id="deviceSummary" class="muted">1 online</span></div>
+          <div id="deviceList" class="device-list" aria-live="polite"></div>
+        </section>
+      </div>
+    </section>
+
+    <footer><span>Serving <strong id="serverDirectory">./files</strong></span><span>NightWire <strong id="versionText">1.0.2</strong></span></footer>
+  </main>
+
+  <div id="settingsModal" class="modal-backdrop hidden" role="presentation">
+    <section class="modal-card countdown-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <div class="modal-heading">
+        <div><p class="eyebrow">AUTO-DELETE</p><h3 id="settingsTitle">Edit countdown</h3><p id="settingsSubtitle"></p></div>
+        <button id="closeSettingsButton" class="modal-close" type="button" aria-label="Close countdown editor">×</button>
+      </div>
+      <form id="settingsForm">
+        <fieldset class="settings-section">
+          <legend>Retention</legend>
+          <label class="field-label" for="settingsExpiryPreset">Delete item</label>
+          <select id="settingsExpiryPreset">
+            <option value="keep">Keep current setting</option>
+            <option value="300">5 minutes from now</option>
+            <option value="600">10 minutes from now</option>
+            <option value="1800">30 minutes from now</option>
+            <option value="3600">1 hour from now</option>
+            <option value="21600">6 hours from now</option>
+            <option value="86400">24 hours from now</option>
+            <option value="0">Unlimited / never</option>
+            <option value="custom">Custom duration…</option>
+          </select>
+          <label id="settingsCustomExpiryWrap" class="custom-duration hidden">
+            <input id="settingsCustomExpiry" type="number" min="1" max="525600" step="1" value="10" inputmode="numeric">
+            <span>minutes from now</span>
+          </label>
+          <small id="settingsExpiryStatus" class="field-help"></small>
+          <small class="field-help">This countdown can be changed by any connected client. Password protection is permanent and is not exposed here.</small>
+        </fieldset>
+        <div class="modal-actions"><button id="cancelSettingsButton" class="secondary-button" type="button">Cancel</button><button id="saveSettingsButton" class="primary-button" type="submit">Save countdown</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div id="passwordModal" class="modal-backdrop hidden" role="presentation">
+    <section class="modal-card password-card" role="dialog" aria-modal="true" aria-labelledby="passwordTitle">
+      <div class="modal-heading"><div><p class="eyebrow">PASSWORD REQUIRED</p><h3 id="passwordTitle">Unlock item</h3><p id="passwordSubtitle"></p></div><button id="closePasswordButton" class="modal-close" type="button" aria-label="Close password prompt">×</button></div>
+      <form id="passwordForm">
+        <label class="form-field"><span>Password</span><input id="passwordInput" type="password" maxlength="256" autocomplete="current-password" required></label>
+        <div class="modal-actions"><button id="cancelPasswordButton" class="secondary-button" type="button">Cancel</button><button id="submitPasswordButton" class="primary-button" type="submit">Continue</button></div>
+      </form>
+    </section>
+  </div>
+
+  <div id="toastRegion" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <script src="/static/app.js?v=1.0.2" defer></script>
+</body>
+</html>
