@@ -11,6 +11,7 @@ This directory contains the extended documentation for NightWire `1.0.2`.
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Users and operators | Common startup, network, upload, clipboard, password, and mobile issues. |
 | [SECURITY.md](SECURITY.md) | Operators and reviewers | Threat model, password scope, transport limits, and deployment guidance. |
 | [PROJECT.md](PROJECT.md) | Maintainers | Architecture, repository layout, persistence, polling, and performance principles. |
+| [V1.0.2-ARCHITECTURE-INVENTORY.md](V1.0.2-ARCHITECTURE-INVENTORY.md) | Maintainers | Frozen implementation inventory for the v1.0.2 routes, state, storage, lifecycle, frontend, installers, and tests. |
 | [API.md](API.md) | Integrators and contributors | Internal HTTP endpoints, payloads, responses, and status codes. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contributors | Development setup, standards, tests, manual validation, and release workflow. |
 

@@ -24,6 +24,8 @@ Password protection limits content access through NightWire, but it does not tur
 
 Passwords are optional and must be selected when a file is uploaded or clipboard text is shared.
 
+Password length, digest creation, verification, and authorization are centralized in configured application policy. Upload-header decoding runs in middleware; Drop routes receive normalized creation context and delegate authorization to `DropService`. This changes ownership without changing v1.0.2 password semantics.
+
 After creation, the public API permits only countdown changes. It does not permit a password to be added, changed, or removed.
 
 ### Stored password data
@@ -74,15 +76,25 @@ Protected deletion still requires the password.
 
 NightWire implements several file-safety measures:
 
-- filenames are resolved and required to remain directly inside the configured files directory;
-- path traversal and the internal metadata filename are rejected;
-- uploads use hidden temporary files;
-- successful uploads are committed with an atomic replace;
+- logical filenames are validated as single basenames, while permanent content is stored under random opaque object IDs;
+- object and temporary IDs accept only fixed-length lowercase hexadecimal values and are mapped inside dedicated storage roots;
+- path traversal, internal directory names, and the internal metadata filename are rejected;
+- uploads use isolated files under `.nightwire-uploads/`;
+- successful uploads are committed into `.nightwire-objects/` with an atomic rename after the stream completes;
+- SHA-256 is calculated during streaming and persisted as integrity metadata;
+- MIME is detected from stored signatures/content rather than trusted from the browser;
+- extension, browser-declared MIME, and detected MIME disagreements produce a persisted `suspicious` verdict;
+- per-object security results are stored under `.nightwire-object-metadata/` and mirrored into logical file metadata;
 - incomplete temporary uploads are removed after client disconnects or errors;
+- inactive temporary uploads older than 24 hours are reclaimed unless the transfer service still marks them active;
 - protected existing files cannot be overwritten by another upload with the same name;
 - downloads use `application/octet-stream` and `X-Content-Type-Options: nosniff`.
 
 An unprotected existing file may be replaced by a new upload with the same name. Treat shared filenames as mutable unless they are protected.
+
+Security verdicts are evidence, not enforcement. The normalized model supports `clean`, `suspicious`, `malicious`, `scan_failed`, and `unscanned`, but NightWire does not ship a malware scanner or block transfers based on verdicts yet. The scanner adapter is an integration boundary, not a claim that content has been scanned.
+
+Security-sensitive content processors must use the sandbox-execution abstraction rather than assuming access to host paths or subprocesses. Sandbox requests use logical object IDs, basename-only input labels, positive resource limits, and no network access by default. The built-in executor is deny-only; no sandboxed program execution is currently enabled.
 
 ## Clipboard protections and limitations
 

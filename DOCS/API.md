@@ -36,10 +36,14 @@ Important fields include:
   "item_min_expiry_seconds": 60,
   "item_max_expiry_seconds": 31536000,
   "password_max_characters": 256,
+  "installed_modules": {"drop": true, "library": true},
+  "deployment_profile": "trusted-private",
   "network_urls": ["http://192.168.1.29:8080"],
   "primary_network_url": "http://192.168.1.29:8080"
 }
 ```
+
+Drop's enabled state controls whether the legacy route surface is registered at application bootstrap. Library has no routes yet. The deployment-profile field remains descriptive and does not itself add internet-facing security controls.
 
 ## Files
 
@@ -57,6 +61,9 @@ Returns the current file list and filesystem usage.
       "created_at": "2026-07-26T20:00:00+00:00",
       "expires_at": null,
       "password_protected": false,
+      "checksum_sha256": "c21f...64 lowercase hexadecimal characters...",
+      "security_verdict": "unscanned",
+      "detected_mime": "application/pdf",
       "download_url": "/download/report.pdf"
     }
   ],
@@ -81,7 +88,11 @@ Optional request headers:
 
 The Base64 header is encoding only and does not provide transport encryption.
 
-Success status: `201 Created`.
+Success status: `201 Created`. The response includes a `transfer_id`, the public `file` record, `bytes_written`, the streamed content's `checksum_sha256`, elapsed seconds, and average byte rate. The checksum is also present in new public file records; legacy files that do not have stored checksum metadata return `null`.
+
+The request `Content-Type` is retained only as declared MIME evidence. Core detects MIME from stored content, compares detected, declared, and filename-extension evidence, and persists the result. No malware scanner is configured by default, so a consistent upload is `unscanned`; a MIME mismatch is `suspicious`. These verdicts are informational and do not currently reject an upload.
+
+Original filenames remain the logical API and download names. Newly uploaded content is physically stored under an opaque internal object ID that is not exposed by this API.
 
 A protected existing file with the same name returns `409 Conflict`. An unprotected file with the same name may be replaced.
 
@@ -99,7 +110,7 @@ Use `0` for unlimited. Password-related fields are rejected.
 
 ### `GET /download/{filename}`
 
-Downloads an unprotected file. A protected file returns `401` and must use the protected download endpoint.
+Downloads an unprotected file. A protected file returns `401` and must use the protected download endpoint. Object-backed GET responses stream through Core and include `X-NightWire-Transfer-ID`; the ID correlates with Core's in-memory progress state. Compatible legacy root files retain the existing file-response path.
 
 ### `POST /api/files/{filename}/download`
 

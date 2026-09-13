@@ -4,6 +4,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import app
 from app import (
@@ -25,6 +26,11 @@ from app import (
     update_file_settings,
     verify_password,
 )
+
+
+async def immediate_run_sync(function, *args, **kwargs):
+    """Run the cleanup join inline so Python 3.14 does not retain an AnyIO worker."""
+    return function(*args)
 
 
 class UserAgentTests(unittest.TestCase):
@@ -243,7 +249,8 @@ class CleanupWorkerTests(unittest.TestCase):
         deadline = time.time() + 2.5
         while time.time() < deadline and (path.exists() or clipboard_snapshot()[1]):
             time.sleep(0.05)
-        asyncio.run(app.stop_cleanup_worker())
+        with mock.patch.object(app.anyio.to_thread, "run_sync", new=immediate_run_sync):
+            asyncio.run(app.stop_cleanup_worker())
 
         self.assertFalse(path.exists())
         self.assertEqual(clipboard_snapshot()[1], [])

@@ -9,7 +9,7 @@ NightWire is built to provide fast, low-friction sharing between devices on the 
 - browser-based clients with no app installation;
 - predictable local persistence;
 - a responsive interface on desktop and mobile;
-- simple deployment through `uv` and a Linux installer.
+- simple deployment through `uv` and cross-platform installers.
 
 ## Non-goals
 
@@ -47,6 +47,7 @@ Browser clients
                                 │
                          Starlette application
                          ├── file service
+                         ├── Core transfer service
                          ├── clipboard service
                          ├── client heartbeat registry
                          ├── QR generator
@@ -54,7 +55,7 @@ Browser clients
                                 │
                  ┌──────────────┴──────────────┐
                  │                             │
-          Shared file directory          Process memory
+          Core object storage            Process memory
           + metadata JSON                clipboard entries
 ```
 
@@ -64,16 +65,40 @@ The application is a single process. Shared mutable state is guarded by thread l
 
 ```text
 NightWire/
-├── app.py                    # Starlette app, API, lifecycle, security, server entry point
+├── app.py                    # 15-line compatibility alias and executable launcher
+├── nightwire/
+│   ├── core/config.py        # Central paths, limits, module flags, and deployment profile
+│   ├── core/capacity.py      # Capacity-meter and quota-policy contracts
+│   ├── core/lifecycle.py     # Expiration decisions and orphan-upload cleanup
+│   ├── core/security.py      # MIME evidence, verdicts, pipeline, and scanner contract
+│   ├── core/storage.py       # Logical object-ID storage contract and local backend
+│   ├── core/transfer.py      # Upload/download streaming, progress, and finalization
+│   ├── drop/
+│   │   ├── domain.py         # Route-independent Drop entities
+│   │   ├── repository.py     # Metadata contract and local JSON repository
+│   │   ├── service.py        # File use cases composed over Core contracts
+│   │   ├── compatibility.py  # Clipboard facade and client-visibility service
+│   │   └── registration.py   # Current route/static/lifecycle registration
+│   ├── library/registration.py # Empty initial Library registration
+│   ├── text/                 # Shared-text package boundary (skeleton)
+│   ├── processors/
+│   │   ├── base.py           # Versioned results, derived objects, contract, and registry
+│   │   └── sandbox.py        # Deny-by-default isolated-execution abstraction
+│   └── app/
+│       ├── bootstrap.py      # Starlette construction and conditional composition
+│       ├── passwords.py      # Configured password policy and request middleware
+│       ├── registration.py   # Module, registry, context, and binding contracts
+│       └── runtime.py        # HTTP adapters, compatibility helpers, and runtime
 ├── static/
 │   ├── index.html            # Three-page browser shell
-│   ├── app.js                # Routing, upload, polling, clipboard, clients, dialogs
+│   ├── app.js                # Shared ES-module application bootstrap
+│   ├── drop.js               # Drop-owned v1.0.2 UI behavior
 │   └── styles.css            # Responsive aurora interface
 ├── files/
 │   └── .gitkeep              # Default shared-file directory placeholder
-├── tests/
-│   └── test_app.py           # Core unit tests
-├── install.sh                # Linux system installer/upgrader
+├── tests/                    # Unit, characterization, architecture, and installer tests
+├── install.sh                # Linux and macOS installer/upgrader
+├── install.ps1               # Windows installer/upgrader
 ├── update-existing.sh        # Recursive source/installation updater
 ├── run.sh                    # Unix source-tree launcher
 ├── run.bat                   # Windows source-tree launcher
@@ -84,6 +109,20 @@ NightWire/
 ├── README.md                 # Project overview and installation
 └── DOCS/                     # Extended project documentation
 ```
+
+The root `app.py` is only a compatibility alias and executable launcher. On import it resolves to `nightwire.app.runtime`, preserving legacy attribute mutation and monkeypatch behavior without retaining implementation at the repository root. Core owns infrastructure contracts; Drop owns its domain, repository, file use cases, clipboard compatibility facade, client visibility, and route registration; the application package owns composition, configured password middleware, and HTTP adaptation.
+
+`DropItem` is independent of Starlette requests and response dictionaries. `DropRepository` owns metadata access, with `LocalDropRepository` retaining the lightweight filename-keyed `.nightwire-metadata.json` format so existing installations migrate without a database or one-time conversion. The compatibility `_FILE_METADATA` mapping is the local repository's backing map during this transition.
+
+## Application bootstrap and module registration
+
+`nightwire.app.bootstrap.build_application()` creates a registration context and registry, invokes each enabled module in order, then builds the Starlette application from the collected routes and startup/shutdown hooks. Global HTTP middleware is supplied to the same bootstrap function.
+
+Modules implement a small registration contract: a stable `name` plus `register(registry, context)`. The registry accepts HTTP routes, mounted ASGI applications, startup hooks, and shutdown hooks. The context exposes resolved settings and the legacy handler mapping during migration.
+
+Drop is the initial compatibility module and registers every v1.0.2 route, `/static`, and the cleanup worker hooks. Library is independently conditional but currently registers no functionality. Registered module names are exposed as `app.state.registered_modules` for diagnostics and tests.
+
+File route handlers validate transport input, invoke `DropService`, and translate domain exceptions to existing status codes. `DropService` composes the Drop repository with Core storage, transfer, lifecycle, and security contracts. Password creation and verification are injected as configured policy; the upload password header is decoded by application middleware. Clipboard routes pass through `DropClipboardService` pending the Text migration. Client TTL, mutation, sorting, and projection live in `DropClientVisibilityService`.
 
 ## Browser routing
 
@@ -99,14 +138,31 @@ Static assets are served under `/static` with no-store caching headers.
 
 1. The client sends raw file bytes to `PUT /api/upload?filename=...`.
 2. The server validates the filename and creation settings.
-3. Data is streamed to a hidden `.uploading-<id>` temporary file.
-4. On success, `os.replace()` atomically moves the temporary file to its final name.
-5. Creation time, expiration, and the optional password hash are written to `files/.nightwire-metadata.json`.
-6. The cleanup worker removes expired files and their metadata.
+3. Core allocates an isolated ID under `files/.nightwire-uploads/` and streams the body there while calculating SHA-256.
+4. After the complete body is received and overwrite rules are rechecked, Core atomically promotes the temporary upload into `files/.nightwire-objects/` under a stable opaque object ID.
+5. Core detects MIME from stored bytes, compares extension/declared/detected evidence, optionally invokes a scanner adapter, and persists a normalized security result beside the stored object.
+6. The logical filename, object ID, byte size, checksum, security result, creation time, expiration, and optional password hash are written to `files/.nightwire-metadata.json`.
+7. The cleanup worker resolves the object ID and removes both expired physical content and metadata.
 
 The metadata file is written to a temporary path and atomically replaced to reduce the risk of partial writes.
 
-Files placed directly into the shared directory are discovered and receive default metadata: their filesystem modification time becomes the creation time, retention is unlimited, and they are unprotected.
+Storage and transfer interfaces accept logical `ObjectId` and `TemporaryUploadId` values rather than caller-supplied paths. The local backend alone maps those validated IDs to physical references. Filenames therefore remain user-facing labels and do not determine where new content is stored.
+
+Legacy files placed directly into the shared directory remain discoverable and receive default metadata: their filesystem modification time becomes the creation time, retention is unlimited, and they are unprotected. They continue to work until replaced by a new upload, which migrates that logical filename to object-backed storage.
+
+Object-backed downloads are prepared and streamed in `CoreTransferService`. Uploads and downloads emit immutable progress events into a bounded, thread-safe latest-state store and optional hooks. Transfer IDs are returned by uploads and in object-download response headers so a future module or frontend endpoint can correlate that state. No progress-listing route is registered yet.
+
+Core defines capacity measurement and policy contracts plus an allow-all compatibility policy. Library does not enforce quotas yet.
+
+## Security pipeline
+
+`CoreSecurityPipeline` reads object bytes through the storage interface. Signature/structure detection does not use the filename or browser-declared MIME. It then compares detected MIME with the filename extension and normalized declared MIME.
+
+The verdict vocabulary is `clean`, `suspicious`, `malicious`, `scan_failed`, and `unscanned`. With no scanner configured, consistent content is `unscanned` and mismatched MIME evidence is `suspicious`. `MalwareScannerAdapter` allows a future scanner to inspect an object ID through Core storage without making Core depend on a product-specific executable or API. Results are informational and not an upload/download enforcement gate at this stage.
+
+`ProcessorRegistry` provides ordered, unique-name registration for post-storage processors. A `ProcessorIdentity` combines the stable name with an implementation version, and every execution result records that exact identity plus `succeeded`, `failed`, or `skipped` status. Results can include metadata, timing, an error, and zero or more typed `DerivedObject` references for content a future processor stores through Core. One processor failure is isolated from later processors. No processors are registered by default.
+
+Security-sensitive processors can depend on `SandboxExecutor` instead of invoking host processes directly. Requests contain a processor identity, a sandbox executable name, arguments, read-only logical object inputs, bounded wall-time/memory/output/process limits, an explicit environment, and a network flag that defaults off. Inputs and commands cannot contain host paths. NightWire currently supplies only `DenySandboxExecutor`, so sandbox work cannot accidentally run until a genuinely isolated implementation is configured.
 
 ## Clipboard lifecycle
 
@@ -127,7 +183,7 @@ The server itself is always included as the first device record. Browser records
 
 ## Cleanup worker
 
-An application startup hook creates a daemon thread that checks file and clipboard expiration once per second. The shutdown hook signals and joins the thread.
+An application startup hook creates a daemon thread that asks `CoreLifecycleService` to classify file and clipboard expiration once per second. The same sweep removes inactive temporary uploads older than 24 hours while excluding upload IDs currently owned by the transfer service. The shutdown hook signals and joins the thread.
 
 Request handlers also purge expired items before relevant list, update, unlock, download, or delete operations. This keeps API responses consistent even if cleanup timing is delayed.
 
@@ -142,6 +198,8 @@ Passwords are accepted only when an item is created. The server stores:
 Verification uses constant-time digest comparison. Passwords are immutable through the public API. See [SECURITY.md](SECURITY.md) for the full threat model and limitations.
 
 ## Frontend update model
+
+`static/index.html` loads the shared `static/app.js` ES-module shell, which imports and starts Drop-owned `static/drop.js`. This is an ownership split only; the DOM, route model, polling cadence, and visual design are unchanged.
 
 The browser uses lightweight polling:
 

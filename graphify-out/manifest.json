@@ -1,0 +1,344 @@
+{
+  "app.py": {
+    "mtime": 1789329850.4526215,
+    "seen": 1789330948.1335518,
+    "ast_hash": "f02f350572aea9e7a41484bfbcc986e7",
+    "semantic_hash": ""
+  },
+  "files/.nightwire-metadata.json": {
+    "mtime": 1785098149.8741076,
+    "seen": 1789283630.3281965,
+    "ast_hash": "8a80554c91d9fca8acb82f023de02f11",
+    "semantic_hash": "8a80554c91d9fca8acb82f023de02f11"
+  },
+  "install.sh": {
+    "mtime": 1789311122.3121455,
+    "seen": 1789318871.4474623,
+    "ast_hash": "79dcd24aefb7ea4fe83f2e17831c10ba",
+    "semantic_hash": ""
+  },
+  "pyproject.toml": {
+    "mtime": 1785097852.0,
+    "seen": 1789283630.3282003,
+    "ast_hash": "6927409e38e87e0ba297df47a2d4e907",
+    "semantic_hash": "6927409e38e87e0ba297df47a2d4e907"
+  },
+  "run.sh": {
+    "mtime": 1785069232.0,
+    "seen": 1789283630.3282015,
+    "ast_hash": "3dc2a87e7a0f9d6ab6254176371663cd",
+    "semantic_hash": "3dc2a87e7a0f9d6ab6254176371663cd"
+  },
+  "static/app.js": {
+    "mtime": 1789330327.9780984,
+    "seen": 1789330948.1336029,
+    "ast_hash": "23963f6e9d22e64847db172760f7477e",
+    "semantic_hash": ""
+  },
+  "tests/test_app.py": {
+    "mtime": 1789319531.905055,
+    "seen": 1789319600.1318352,
+    "ast_hash": "5e865ccb5b6af87bd702055ab670e39b",
+    "semantic_hash": ""
+  },
+  "update-existing.sh": {
+    "mtime": 1785070800.0,
+    "seen": 1789283630.3282049,
+    "ast_hash": "1859c36f895cad1d12b1f72d82ad9ab8",
+    "semantic_hash": "1859c36f895cad1d12b1f72d82ad9ab8"
+  },
+  "DOCS/API.md": {
+    "mtime": 1789322388.3694701,
+    "seen": 1789322494.2779586,
+    "ast_hash": "50c2cae0ddc83f1c1fecc26196e86f52",
+    "semantic_hash": ""
+  },
+  "DOCS/CONFIGURATION.md": {
+    "mtime": 1789330660.9500864,
+    "seen": 1789330948.1336188,
+    "ast_hash": "fb6a94dad6de1ec12cf1ef0964a9dc8a",
+    "semantic_hash": ""
+  },
+  "DOCS/CONTRIBUTING.md": {
+    "mtime": 1789330768.7846808,
+    "seen": 1789330948.13362,
+    "ast_hash": "86836fa014653c75306fec477fbdff94",
+    "semantic_hash": ""
+  },
+  "DOCS/PROJECT.md": {
+    "mtime": 1789330660.8270845,
+    "seen": 1789330948.133621,
+    "ast_hash": "b83805c9bfbbbfea2be3d52534dc93fa",
+    "semantic_hash": ""
+  },
+  "DOCS/README.md": {
+    "mtime": 1789319097.1204402,
+    "seen": 1789319216.0792463,
+    "ast_hash": "aba0251c4e1e94d0cce1eb4b6c097cb3",
+    "semantic_hash": ""
+  },
+  "DOCS/SECURITY.md": {
+    "mtime": 1789330661.0790882,
+    "seen": 1789330948.1336234,
+    "ast_hash": "9f5b74a759cf59ece2b30356c5fe4791",
+    "semantic_hash": ""
+  },
+  "DOCS/TROUBLESHOOTING.md": {
+    "mtime": 1789322461.956595,
+    "seen": 1789322494.2779715,
+    "ast_hash": "0e8ab880b223c1aa21a177ae4ed4636e",
+    "semantic_hash": ""
+  },
+  "DOCS/USAGE.md": {
+    "mtime": 1789321191.1377695,
+    "seen": 1789321323.769681,
+    "ast_hash": "48f24a4c67b1f963d3183d70995d7d4f",
+    "semantic_hash": ""
+  },
+  "README.md": {
+    "mtime": 1789330768.665679,
+    "seen": 1789330948.133628,
+    "ast_hash": "55c182e2909df28ad634a32ff2c3f6be",
+    "semantic_hash": ""
+  },
+  "release-manifest.txt": {
+    "mtime": 1789330465.3911712,
+    "seen": 1789330948.1336288,
+    "ast_hash": "2aad2967eb13cda09f377bd8ec08dffd",
+    "semantic_hash": ""
+  },
+  "static/index.html": {
+    "mtime": 1789330328.1361008,
+    "seen": 1789330948.13363,
+    "ast_hash": "1ca2c64623d7887663bf009fa8e61fbd",
+    "semantic_hash": ""
+  },
+  "static/assets/logo.svg": {
+    "mtime": 1785102004.0,
+    "seen": 1789283763.9502058,
+    "ast_hash": "8cb1ef9827d77b84db7274f6ae4fccfd",
+    "semantic_hash": ""
+  },
+  "install.ps1": {
+    "mtime": 1789311102.8230803,
+    "seen": 1789318871.4474602,
+    "ast_hash": "30c2bc30952745d3f58b16f94887356f",
+    "semantic_hash": ""
+  },
+  "DOCS/V1.0.2-ARCHITECTURE-INVENTORY.md": {
+    "mtime": 1789330768.879682,
+    "seen": 1789330948.1336267,
+    "ast_hash": "faff1c57280ce786894c980d52434471",
+    "semantic_hash": ""
+  },
+  "tests/test_characterization.py": {
+    "mtime": 1789322328.7755609,
+    "seen": 1789322494.2779424,
+    "ast_hash": "f941130a6f53d9aa591e9c3dea299099",
+    "semantic_hash": ""
+  },
+  "nightwire/__init__.py": {
+    "mtime": 1789319888.5583158,
+    "seen": 1789320047.959501,
+    "ast_hash": "03728eacba27fa76c153e13a7d2a90e6",
+    "semantic_hash": ""
+  },
+  "nightwire/app/__init__.py": {
+    "mtime": 1789330541.3353076,
+    "seen": 1789330948.1335678,
+    "ast_hash": "880ac307bac98e7c282a5c82dc7c9009",
+    "semantic_hash": ""
+  },
+  "nightwire/core/__init__.py": {
+    "mtime": 1789321990.0594242,
+    "seen": 1789322494.2778893,
+    "ast_hash": "12d2c888dbbc37be7ff67db2158d64fa",
+    "semantic_hash": ""
+  },
+  "nightwire/core/config.py": {
+    "mtime": 1789319888.9213276,
+    "seen": 1789320047.9595046,
+    "ast_hash": "f320003c194b890ee9a5e44b8b23d316",
+    "semantic_hash": ""
+  },
+  "nightwire/drop/__init__.py": {
+    "mtime": 1789330541.2463062,
+    "seen": 1789330948.1335855,
+    "ast_hash": "cec4a74692c7e0b227a7e81562e8e640",
+    "semantic_hash": ""
+  },
+  "nightwire/library/__init__.py": {
+    "mtime": 1789320230.6648912,
+    "seen": 1789320457.5909543,
+    "ast_hash": "1066c9a571f8defc3941ca54dbc4dea1",
+    "semantic_hash": ""
+  },
+  "nightwire/processors/__init__.py": {
+    "mtime": 1789322703.0842907,
+    "seen": 1789322990.598436,
+    "ast_hash": "ba2050c672766bfdca8dda96a3db915f",
+    "semantic_hash": ""
+  },
+  "nightwire/text/__init__.py": {
+    "mtime": 1789319889.6553514,
+    "seen": 1789320047.9595087,
+    "ast_hash": "4b434134ef2c6013f561d8c990c83100",
+    "semantic_hash": ""
+  },
+  "tests/test_config.py": {
+    "mtime": 1789319934.4327743,
+    "seen": 1789320047.9595168,
+    "ast_hash": "39e2c834e4e24a4e49c3f6c4ed502466",
+    "semantic_hash": ""
+  },
+  "nightwire/app/bootstrap.py": {
+    "mtime": 1789320435.2985678,
+    "seen": 1789320457.5909457,
+    "ast_hash": "56ece6480b074063ba2cfa6d0bb006c4",
+    "semantic_hash": ""
+  },
+  "nightwire/app/registration.py": {
+    "mtime": 1789320335.715364,
+    "seen": 1789320457.5909472,
+    "ast_hash": "cb7046c783e1d935da760deadd9fe741",
+    "semantic_hash": ""
+  },
+  "nightwire/drop/registration.py": {
+    "mtime": 1789320336.024371,
+    "seen": 1789320457.5909529,
+    "ast_hash": "5e3c9363b25e1beec299746561cf9512",
+    "semantic_hash": ""
+  },
+  "nightwire/library/registration.py": {
+    "mtime": 1789320230.1438787,
+    "seen": 1789320457.5909553,
+    "ast_hash": "2d2f237369cc3e479a5bb8f0d0360e03",
+    "semantic_hash": ""
+  },
+  "tests/test_bootstrap.py": {
+    "mtime": 1789320435.4335709,
+    "seen": 1789320457.5909655,
+    "ast_hash": "382e03eb49e1d1fb7db5cafe5c77fe2f",
+    "semantic_hash": ""
+  },
+  "nightwire/core/storage.py": {
+    "mtime": 1789330903.5786638,
+    "seen": 1789330948.1335828,
+    "ast_hash": "76406c5981e00799992a4f8466c5ef3a",
+    "semantic_hash": ""
+  },
+  "nightwire/core/transfer.py": {
+    "mtime": 1789322328.3655546,
+    "seen": 1789322494.2779086,
+    "ast_hash": "4cb3570a7b7c0b3480901d773a6708d6",
+    "semantic_hash": ""
+  },
+  "tests/test_core_storage.py": {
+    "mtime": 1789330904.0996716,
+    "seen": 1789330948.133611,
+    "ast_hash": "d39778d053ae1da6afd2661c3a25f794",
+    "semantic_hash": ""
+  },
+  "tests/test_dependency_boundaries.py": {
+    "mtime": 1789321078.8658323,
+    "seen": 1789321323.7696705,
+    "ast_hash": "8450ae5573daccc33907a9966c145fe0",
+    "semantic_hash": ""
+  },
+  "nightwire/core/capacity.py": {
+    "mtime": 1789321787.8213966,
+    "seen": 1789322494.2778926,
+    "ast_hash": "1be36b7dbfc6bea10c80180291419743",
+    "semantic_hash": ""
+  },
+  "nightwire/core/lifecycle.py": {
+    "mtime": 1789321787.6893947,
+    "seen": 1789322494.277898,
+    "ast_hash": "6771843bd6d64b036f2510bc8b967799",
+    "semantic_hash": ""
+  },
+  "nightwire/core/security.py": {
+    "mtime": 1789330575.6248188,
+    "seen": 1789330948.1335816,
+    "ast_hash": "cdfeb959343dca8120c38902cb180d25",
+    "semantic_hash": ""
+  },
+  "nightwire/processors/base.py": {
+    "mtime": 1789322691.0211055,
+    "seen": 1789322990.5984375,
+    "ast_hash": "6f76772047eb902ba2ab92ebc31807c1",
+    "semantic_hash": ""
+  },
+  "tests/test_core_services.py": {
+    "mtime": 1789322776.1944137,
+    "seen": 1789322990.5984516,
+    "ast_hash": "ba21cf679385769c4aac512647f82eeb",
+    "semantic_hash": ""
+  },
+  "nightwire/processors/sandbox.py": {
+    "mtime": 1789322776.0674117,
+    "seen": 1789322990.5984395,
+    "ast_hash": "479144a974eb50c33efcb044ef763e03",
+    "semantic_hash": ""
+  },
+  "tests/test_processors.py": {
+    "mtime": 1789322776.3254156,
+    "seen": 1789322990.5984552,
+    "ast_hash": "a8e4418b5bb66744c1439f10008fe091",
+    "semantic_hash": ""
+  },
+  "nightwire/app/passwords.py": {
+    "mtime": 1789330768.5466774,
+    "seen": 1789330948.1335711,
+    "ast_hash": "97c5c985c471a5f3b3c50dee57dd3cdd",
+    "semantic_hash": ""
+  },
+  "nightwire/app/runtime.py": {
+    "mtime": 1789330903.8816683,
+    "seen": 1789330948.1335742,
+    "ast_hash": "fbec8715e1195308ad3682f255378649",
+    "semantic_hash": ""
+  },
+  "nightwire/drop/compatibility.py": {
+    "mtime": 1789330393.4360888,
+    "seen": 1789330948.1335864,
+    "ast_hash": "2c04c89108b42d455d4cff6d92e96db8",
+    "semantic_hash": ""
+  },
+  "nightwire/drop/domain.py": {
+    "mtime": 1789330575.71382,
+    "seen": 1789330948.1335876,
+    "ast_hash": "fd40f4381e188f344ce3e7c19f0aa06d",
+    "semantic_hash": ""
+  },
+  "nightwire/drop/repository.py": {
+    "mtime": 1789329946.217168,
+    "seen": 1789330948.13359,
+    "ast_hash": "82c372d32714399a674b99369224a9e9",
+    "semantic_hash": ""
+  },
+  "nightwire/drop/service.py": {
+    "mtime": 1789330903.7676666,
+    "seen": 1789330948.133591,
+    "ast_hash": "328757105a8144eb536e04e340006f25",
+    "semantic_hash": ""
+  },
+  "static/drop.js": {
+    "mtime": 1789330321.642002,
+    "seen": 1789330948.1336038,
+    "ast_hash": "5f1bb52e84cfa60b2019d5cb3f3632fc",
+    "semantic_hash": ""
+  },
+  "tests/test_drop.py": {
+    "mtime": 1789330903.9806697,
+    "seen": 1789330948.1336133,
+    "ast_hash": "52ec0481d8fa558698d037b9ecbf5b99",
+    "semantic_hash": ""
+  },
+  "tests/test_e2e_regression.py": {
+    "mtime": 1789330482.4784274,
+    "seen": 1789330948.133614,
+    "ast_hash": "51aad439eadebe1f3f3edae8d55fb332",
+    "semantic_hash": ""
+  }
+}

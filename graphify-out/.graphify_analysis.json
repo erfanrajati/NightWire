@@ -1,0 +1,370 @@
+{
+  "communities": {
+    "0": [
+      "any",
+      "app_add_clipboard_entry",
+      "app_apply_item_settings",
+      "app_clipboard_entry_locked",
+      "app_clipboard_snapshot",
+      "app_default_file_metadata",
+      "app_delete_clipboard_entry",
+      "app_expires_at_from_seconds",
+      "app_normalize_clipboard_text",
+      "app_parse_iso_timestamp",
+      "app_password_required",
+      "app_public_clipboard_entry",
+      "app_purge_expired_clipboard_entries_locked",
+      "app_rationale_216",
+      "app_rationale_267",
+      "app_unlock_clipboard_entry",
+      "app_update_clipboard_settings",
+      "app_utc_iso",
+      "tests_test_app_cleanupworkertests",
+      "tests_test_app_cleanupworkertests_setup",
+      "tests_test_app_cleanupworkertests_teardown",
+      "tests_test_app_cleanupworkertests_test_cleanup_worker_enforces_expiry_without_polling",
+      "tests_test_app_clipboardtests",
+      "tests_test_app_clipboardtests_setup",
+      "tests_test_app_clipboardtests_test_clipboard_expiry_defaults_to_ten_minutes",
+      "tests_test_app_clipboardtests_test_clipboard_history_is_bounded_and_newest_first",
+      "tests_test_app_clipboardtests_test_clipboard_text_preserves_lines_and_normalizes_endings",
+      "tests_test_app_clipboardtests_test_empty_clipboard_text_is_rejected",
+      "tests_test_app_clipboardtests_test_expired_clipboard_entries_are_purged",
+      "tests_test_app_clipboardtests_test_protected_clipboard_countdown_is_public_but_password_is_immutable",
+      "tests_test_app_clipboardtests_test_protected_clipboard_delete_requires_password",
+      "tests_test_app_clipboardtests_test_protected_clipboard_text_is_withheld_and_unlockable"
+    ],
+    "1": [
+      "app_create_password_record",
+      "app_delete_file_record",
+      "app_file_metadata_locked",
+      "app_human_file_record",
+      "app_load_file_metadata",
+      "app_metadata_path",
+      "app_purge_expired_files_locked",
+      "app_rationale_80",
+      "app_safe_file_path",
+      "app_sanitize_password_record",
+      "app_save_file_metadata_locked",
+      "app_update_file_settings",
+      "app_upload_file",
+      "app_verify_password",
+      "path",
+      "tests_test_app",
+      "tests_test_app_filelifecycletests",
+      "tests_test_app_filelifecycletests_setup",
+      "tests_test_app_filelifecycletests_teardown",
+      "tests_test_app_filelifecycletests_test_expired_file_is_removed",
+      "tests_test_app_filelifecycletests_test_file_countdown_can_be_changed_without_password",
+      "tests_test_app_filelifecycletests_test_file_defaults_to_unlimited_and_unprotected",
+      "tests_test_app_filelifecycletests_test_file_password_is_immutable_and_delete_still_requires_it",
+      "tests_test_app_passwordtests",
+      "tests_test_app_passwordtests_test_password_record_verifies_without_storing_plaintext",
+      "tests_test_app_pathtests",
+      "tests_test_app_pathtests_setup",
+      "tests_test_app_pathtests_teardown",
+      "tests_test_app_pathtests_test_filename_is_kept_inside_files_directory",
+      "tests_test_app_pathtests_test_internal_metadata_filename_is_rejected",
+      "tests_test_app_pathtests_test_path_traversal_is_rejected"
+    ],
+    "2": [
+      "app",
+      "app_cleanup_expired_items",
+      "app_cleanup_worker",
+      "app_clear_clipboard",
+      "app_clear_clipboard_entries",
+      "app_local_addresses",
+      "app_local_ipv4_addresses",
+      "app_local_ipv4_addresses_rank",
+      "app_main",
+      "app_normalize_clipboard_expiry",
+      "app_normalize_expiry",
+      "app_normalize_file_expiry",
+      "app_rationale_228",
+      "app_rationale_488",
+      "app_server_device_record",
+      "app_server_info",
+      "app_start_cleanup_worker",
+      "app_stop_cleanup_worker"
+    ],
+    "3": [
+      "app_delete_clipboard",
+      "app_delete_file",
+      "app_download_file",
+      "app_download_protected_file",
+      "app_list_clipboard",
+      "app_list_files",
+      "app_page",
+      "app_patch_clipboard",
+      "app_patch_file",
+      "app_qr_code",
+      "app_read_json_payload",
+      "app_root",
+      "app_unlock_clipboard",
+      "jsonresponse",
+      "request",
+      "response"
+    ],
+    "4": [
+      "static_app_askpassword",
+      "static_app_copyaddress",
+      "static_app_copyclipboardentry",
+      "static_app_copytext",
+      "static_app_deleteclipboardentry",
+      "static_app_deletefile",
+      "static_app_downloadfile",
+      "static_app_downloadprotectedfile",
+      "static_app_performdeleteclipboard",
+      "static_app_performdeletefile",
+      "static_app_readclipboardforrecommendation",
+      "static_app_toast",
+      "static_app_toggleclipboardwatching",
+      "static_app_triggerdownload"
+    ],
+    "5": [
+      "app_active_device_records",
+      "app_clean_text",
+      "app_client_heartbeat",
+      "app_normalize_client_ip",
+      "app_parse_user_agent",
+      "app_purge_inactive_clients",
+      "app_rationale_546",
+      "app_share_clipboard",
+      "app_version_from_agent",
+      "tests_test_app_useragenttests",
+      "tests_test_app_useragenttests_test_iphone_safari",
+      "tests_test_app_useragenttests_test_windows_edge"
+    ],
+    "6": [
+      "static_app_api",
+      "static_app_deviceinitial",
+      "static_app_heartbeat",
+      "static_app_loadclipboard",
+      "static_app_loadinfo",
+      "static_app_relativetime",
+      "static_app_renderdevices",
+      "static_app_routefrompath",
+      "static_app_setroute",
+      "static_app_setserveronline",
+      "static_app_start",
+      "static_app_updateclipboardcharactercount"
+    ],
+    "7": [
+      "static_app",
+      "static_app_clipboardpreview",
+      "static_app_clipboardsharesettings",
+      "static_app_elements",
+      "static_app_fileuploadsettings",
+      "static_app_getclientid",
+      "static_app_queuefiles",
+      "static_app_recommendclipboardtext",
+      "static_app_selectedcreationpassword",
+      "static_app_selectedexpiryseconds",
+      "static_app_state"
+    ],
+    "8": [
+      "static_app_actionbutton",
+      "static_app_createstatusbadge",
+      "static_app_fileextension",
+      "static_app_formatcountdown",
+      "static_app_formatdate",
+      "static_app_opensettings",
+      "static_app_refreshcountdowns",
+      "static_app_renderclipboard",
+      "static_app_renderfiles",
+      "static_app_updatesettingsfields"
+    ],
+    "9": [
+      "static_app_bindevents",
+      "static_app_closepasswordmodal",
+      "static_app_closesettings",
+      "static_app_dismissclipboardrecommendation",
+      "static_app_savesettings",
+      "static_app_selectedtextfromtarget",
+      "static_app_settingsexpiryseconds",
+      "static_app_shareclipboardtext",
+      "static_app_submitpassword",
+      "static_app_updatecreationfields"
+    ],
+    "10": [
+      "install",
+      "install_as_install_user",
+      "install_as_root",
+      "install_cleanup",
+      "install_fail",
+      "install_sh__entry"
+    ],
+    "11": [
+      "static_app_finishupload",
+      "static_app_formatbytes",
+      "static_app_loadfiles",
+      "static_app_updatequeuesummary",
+      "static_app_uploadfile",
+      "static_app_utf8tobase64"
+    ],
+    "12": [
+      "update_existing",
+      "update_existing_as_root",
+      "update_existing_cleanup",
+      "update_existing_fail",
+      "update_existing_sh__entry",
+      "update_existing_usage"
+    ],
+    "13": [
+      "app_decode_optional_password_header",
+      "app_normalize_optional_password",
+      "app_normalize_password",
+      "app_rationale_162",
+      "app_rationale_169"
+    ],
+    "14": [
+      "run",
+      "run_port",
+      "run_sh__entry"
+    ],
+    "15": [
+      "app_list_devices",
+      "app_request_port"
+    ],
+    "16": [
+      "app_security_headers",
+      "middleware"
+    ],
+    "17": [
+      "pkg_nightwire"
+    ]
+  },
+  "cohesion": {
+    "0": 0.11290322580645161,
+    "1": 0.13548387096774195,
+    "2": 0.16993464052287582,
+    "3": 0.2833333333333333,
+    "4": 0.21978021978021978,
+    "5": 0.25757575757575757,
+    "6": 0.2727272727272727,
+    "7": 0.2909090909090909,
+    "8": 0.3111111111111111,
+    "9": 0.28888888888888886,
+    "10": 0.6,
+    "11": 0.4666666666666667,
+    "12": 0.5333333333333333,
+    "13": 0.4,
+    "14": 0.6666666666666666,
+    "15": 1.0,
+    "16": 1.0,
+    "17": 1.0
+  },
+  "gods": [
+    {
+      "id": "static_app_bindevents",
+      "label": "bindEvents()",
+      "degree": 24
+    },
+    {
+      "id": "static_app_toast",
+      "label": "toast()",
+      "degree": 18
+    },
+    {
+      "id": "app_add_clipboard_entry",
+      "label": "add_clipboard_entry()",
+      "degree": 16
+    },
+    {
+      "id": "static_app_renderfiles",
+      "label": "renderFiles()",
+      "degree": 16
+    },
+    {
+      "id": "static_app_start",
+      "label": "start()",
+      "degree": 16
+    },
+    {
+      "id": "app_safe_file_path",
+      "label": "safe_file_path()",
+      "degree": 14
+    },
+    {
+      "id": "static_app_renderclipboard",
+      "label": "renderClipboard()",
+      "degree": 14
+    },
+    {
+      "id": "app_update_file_settings",
+      "label": "update_file_settings()",
+      "degree": 13
+    },
+    {
+      "id": "app_upload_file",
+      "label": "upload_file()",
+      "degree": 13
+    },
+    {
+      "id": "app_share_clipboard",
+      "label": "share_clipboard()",
+      "degree": 12
+    }
+  ],
+  "surprises": [
+    {
+      "source": "delete_file()",
+      "target": "delete_file_record()",
+      "source_files": [
+        "app.py",
+        "app.py"
+      ],
+      "confidence": "INFERRED",
+      "relation": "indirect_call",
+      "note": "Bridges community 1 \u2192 community 3"
+    },
+    {
+      "source": "bindEvents()",
+      "target": "renderFiles()",
+      "source_files": [
+        "static/app.js",
+        "static/app.js"
+      ],
+      "confidence": "INFERRED",
+      "relation": "indirect_call",
+      "note": "Bridges community 8 \u2192 community 9"
+    },
+    {
+      "source": "bindEvents()",
+      "target": "updateClipboardCharacterCount()",
+      "source_files": [
+        "static/app.js",
+        "static/app.js"
+      ],
+      "confidence": "INFERRED",
+      "relation": "indirect_call",
+      "note": "Bridges community 6 \u2192 community 9"
+    },
+    {
+      "source": "bindEvents()",
+      "target": "toggleClipboardWatching()",
+      "source_files": [
+        "static/app.js",
+        "static/app.js"
+      ],
+      "confidence": "INFERRED",
+      "relation": "indirect_call",
+      "note": "Bridges community 4 \u2192 community 9"
+    },
+    {
+      "source": "start()",
+      "target": "refreshCountdowns()",
+      "source_files": [
+        "static/app.js",
+        "static/app.js"
+      ],
+      "confidence": "INFERRED",
+      "relation": "indirect_call",
+      "note": "Bridges community 8 \u2192 community 6"
+    }
+  ],
+  "tokens": {
+    "input": 0,
+    "output": 0
+  }
+}

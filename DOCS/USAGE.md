@@ -23,7 +23,7 @@ Opening `/` redirects to `/files`.
 3. Optionally enter and confirm a password.
 4. Drop one or more files into the upload area or choose **browse your device**.
 
-Uploads stream directly to a temporary file and are atomically moved into the shared directory when complete. NightWire does not set an application-level file-size limit; practical limits are available disk space, browser behavior, and network reliability.
+Uploads stream directly to isolated temporary Core storage while SHA-256 is calculated, then are atomically finalized under an opaque internal object ID. The original filename remains the visible name. NightWire does not set an application-level file-size limit; practical limits are available disk space, browser behavior, and network reliability.
 
 ### Password behavior
 

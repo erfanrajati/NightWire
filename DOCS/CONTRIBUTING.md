@@ -49,19 +49,28 @@ NIGHTWIRE_FILES_DIR=/tmp/nightwire-dev-files PORT=8080 uv run python app.py
 
 ### Backend
 
-`app.py` intentionally contains the compact server core. New backend work should:
+The root `app.py` is a compatibility alias and executable launcher for `nightwire.app.runtime`. Configuration, object storage, transfers/progress, lifecycle decisions, capacity policy, and security inspection belong in `nightwire/core`; Drop domain behavior, metadata persistence, route-facing services, clipboard compatibility, and client visibility belong in `nightwire/drop`; content processing contracts belong in `nightwire/processors`; Starlette construction, registration contracts, configured middleware, and runtime composition belong in `nightwire/app`. New behavior should be placed in the relevant package. Backend work should:
 
 - validate all client input at the boundary;
-- keep file paths inside `FILES_DIR`;
+- address stored content through Core object/upload IDs instead of passing arbitrary filesystem paths across boundaries;
 - use locks for shared state touched by requests and the cleanup thread;
 - preserve atomic metadata writes;
 - remove temporary upload files on failure;
+- keep active transfer IDs out of orphan cleanup and preserve bounded progress state;
+- treat declared MIME as evidence only and detect content from stored bytes;
+- persist normalized security results without treating `unscanned` as `clean`;
+- implement malware engines through `MalwareScannerAdapter`, not direct Core imports;
+- register optional post-storage work through `ProcessorRegistry`;
+- give processors a stable name/version identity and return typed execution results rather than ad hoc dictionaries;
+- describe derived content with `DerivedObject` references after storing it through Core;
+- route security-sensitive external tools through `SandboxExecutor`; never treat `DenySandboxExecutor` as successful execution;
+- keep `drop`, `library`, and `text` from importing one another's internal implementation modules; use Core or an explicitly public package API;
 - maintain no-store and security headers;
 - avoid putting passwords or sensitive plaintext in URLs or logs;
 - preserve creation-only, immutable password protection unless a reviewed security redesign replaces it;
 - remember that countdown changes are intentionally public to LAN clients in the current model.
 
-Split code into modules only when the change clearly improves maintainability without complicating installation.
+Keep `release-manifest.txt` synchronized when adding package files required by source-tree or installed execution.
 
 ### Frontend
 
@@ -104,12 +113,21 @@ Validate JavaScript when Node.js is available:
 
 ```bash
 node --check static/app.js
+node --check static/drop.js
 ```
 
 Validate shell scripts:
 
 ```bash
 bash -n run.sh install.sh update-existing.sh
+```
+
+When PowerShell is available, also parse-check the Windows installer:
+
+```powershell
+$errors = $null
+[System.Management.Automation.Language.Parser]::ParseFile("$PWD/install.ps1", [ref]$null, [ref]$errors) > $null
+if ($errors) { $errors | Format-List; exit 1 }
 ```
 
 Confirm the locked environment is consistent:
@@ -179,6 +197,8 @@ Add or update `unittest` coverage for:
 - immutable password rules;
 - public countdown changes;
 - regression cases from the reported bug.
+
+Run the dependency-boundary test whenever feature packages change. New internal modules are discovered from the package tree, so direct absolute and relative cross-feature imports fail the suite.
 
 Tests that alter global state must restore `FILES_DIR`, metadata, clipboard entries, locks, and cleanup-worker state in teardown.
 

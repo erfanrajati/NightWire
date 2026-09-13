@@ -1,23 +1,32 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# NightWire system installer / upgrader (Linux)
+# NightWire installer / upgrader (Linux and macOS)
 #
 # Safe for both of these cases:
 #   ./install.sh                    # run from an extracted release
-#   cd /srv/nightwire && ./install.sh  # upgrade in place
+#   cd /srv/nightwire && ./install.sh  # upgrade in place (Linux)
 #
 # Optional overrides:
 #   NIGHTWIRE_INSTALL_DIR=/srv/nightwire
 #   NIGHTWIRE_BIN_DIR=/usr/local/bin
-#   NIGHTWIRE_PYTHON=python3.12
+#   NIGHTWIRE_PYTHON=3.12
 
 APP_NAME="NightWire"
 SOURCE_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-INSTALL_DIR="${NIGHTWIRE_INSTALL_DIR:-/srv/nightwire}"
+case "$(uname -s)" in
+    Linux) DEFAULT_INSTALL_DIR="/srv/nightwire" ;;
+    Darwin) DEFAULT_INSTALL_DIR="/usr/local/share/nightwire" ;;
+    *)
+        printf 'Error: this installer supports Linux and macOS. On Windows, run install.ps1.\n' >&2
+        exit 1
+        ;;
+esac
+
+INSTALL_DIR="${NIGHTWIRE_INSTALL_DIR:-$DEFAULT_INSTALL_DIR}"
 BIN_DIR="${NIGHTWIRE_BIN_DIR:-/usr/local/bin}"
 COMMAND_PATH="$BIN_DIR/nightwire"
-PYTHON_REQUEST="${NIGHTWIRE_PYTHON:-python3}"
+PYTHON_REQUEST="${NIGHTWIRE_PYTHON:-3.11}"
 TMP_ROOT="$(mktemp -d)"
 STAGE_DIR="$TMP_ROOT/release"
 LAUNCHER_TMP="$TMP_ROOT/nightwire-launcher"
@@ -32,8 +41,22 @@ fail() {
     exit 1
 }
 
-as_root() {
-    if [[ "$EUID" -eq 0 ]]; then
+nearest_existing_parent() {
+    local candidate="$1"
+    while [[ ! -e "$candidate" ]]; do
+        candidate="$(dirname -- "$candidate")"
+    done
+    printf '%s\n' "$candidate"
+}
+
+USE_SUDO=0
+if [[ "$EUID" -ne 0 ]]; then
+    [[ -w "$(nearest_existing_parent "$INSTALL_DIR")" ]] || USE_SUDO=1
+    [[ -w "$(nearest_existing_parent "$BIN_DIR")" ]] || USE_SUDO=1
+fi
+
+as_admin() {
+    if (( USE_SUDO == 0 )); then
         "$@"
     else
         sudo "$@"
@@ -46,7 +69,12 @@ else
     INSTALL_USER="$(id -un)"
 fi
 INSTALL_GROUP="$(id -gn "$INSTALL_USER")"
-INSTALL_HOME="$(getent passwd "$INSTALL_USER" 2>/dev/null | cut -d: -f6 || true)"
+INSTALL_HOME=""
+if command -v getent >/dev/null 2>&1; then
+    INSTALL_HOME="$(getent passwd "$INSTALL_USER" 2>/dev/null | cut -d: -f6 || true)"
+elif command -v dscl >/dev/null 2>&1; then
+    INSTALL_HOME="$(dscl . -read "/Users/$INSTALL_USER" NFSHomeDirectory 2>/dev/null | cut -d' ' -f2- || true)"
+fi
 INSTALL_HOME="${INSTALL_HOME:-$HOME}"
 
 as_install_user() {
@@ -72,8 +100,48 @@ printf 'Command: %s\n\n' "$COMMAND_PATH"
 [[ -d "$SOURCE_DIR/static" ]] || fail "the static directory was not found."
 command -v tar >/dev/null 2>&1 || fail "tar is required."
 command -v cmp >/dev/null 2>&1 || fail "cmp is required."
-command -v uv >/dev/null 2>&1 || fail "uv is not installed or is not in PATH."
-command -v sudo >/dev/null 2>&1 || [[ "$EUID" -eq 0 ]] || fail "sudo is required to install into $INSTALL_DIR and $BIN_DIR."
+if (( USE_SUDO == 1 )); then
+    command -v sudo >/dev/null 2>&1 || fail "sudo is required to install into $INSTALL_DIR and $BIN_DIR."
+fi
+
+find_uv() {
+    local candidate
+    candidate="$(command -v uv 2>/dev/null || true)"
+    if [[ -n "$candidate" && -x "$candidate" ]]; then
+        printf '%s\n' "$candidate"
+        return 0
+    fi
+    for candidate in "$INSTALL_HOME/.local/bin/uv" "$INSTALL_HOME/.cargo/bin/uv"; do
+        if [[ -x "$candidate" ]]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+    return 1
+}
+
+UV_FOUND="$(find_uv || true)"
+if [[ -z "$UV_FOUND" ]]; then
+    printf 'uv was not found; installing it for %s...\n' "$INSTALL_USER"
+    UV_INSTALLER="$TMP_ROOT/uv-install.sh"
+    if command -v curl >/dev/null 2>&1; then
+        curl -LsSf https://astral.sh/uv/install.sh -o "$UV_INSTALLER" || fail "Could not download the uv installer."
+    elif command -v wget >/dev/null 2>&1; then
+        wget -q https://astral.sh/uv/install.sh -O "$UV_INSTALLER" || fail "Could not download the uv installer."
+    else
+        fail "curl or wget is required to install uv automatically."
+    fi
+    chmod 0755 "$TMP_ROOT" "$UV_INSTALLER"
+    if [[ "$(id -un)" != "$INSTALL_USER" ]]; then
+        as_admin chown "$INSTALL_USER:$INSTALL_GROUP" "$UV_INSTALLER"
+    fi
+    as_install_user env \
+        UV_INSTALL_DIR="$INSTALL_HOME/.local/bin" \
+        UV_NO_MODIFY_PATH=1 \
+        sh "$UV_INSTALLER" || fail "uv installation failed."
+    UV_FOUND="$(find_uv || true)"
+    [[ -n "$UV_FOUND" ]] || fail "uv was installed but could not be located."
+fi
 
 # Stage the complete release before touching the target. This is what makes an
 # in-place upgrade safe when SOURCE_DIR and INSTALL_DIR are the same directory.
@@ -100,7 +168,6 @@ APP_VERSION="$(tr -d '[:space:]' < "$STAGE_DIR/VERSION" 2>/dev/null || true)"
 APP_VERSION="${APP_VERSION:-unknown}"
 printf 'Release: %s\n' "$APP_VERSION"
 
-UV_FOUND="$(command -v uv)"
 UV_REAL="$(readlink -f "$UV_FOUND" 2>/dev/null || printf '%s' "$UV_FOUND")"
 UV_RUNNER="$UV_REAL"
 
@@ -108,8 +175,10 @@ UV_RUNNER="$UV_REAL"
 # or belongs to the invoking user's home directory.
 case "$UV_REAL" in
     "$INSTALL_HOME"/*|/root/*|"$INSTALL_DIR"/*)
-        as_root install -d -m 0755 "$BIN_DIR"
-        as_root install -m 0755 "$UV_REAL" "$BIN_DIR/uv"
+        as_admin install -d -m 0755 "$BIN_DIR"
+        if [[ "$UV_REAL" != "$BIN_DIR/uv" ]]; then
+            as_admin install -m 0755 "$UV_REAL" "$BIN_DIR/uv"
+        fi
         UV_RUNNER="$BIN_DIR/uv"
         ;;
 esac
@@ -121,30 +190,32 @@ fi
 
 # Preserve uploaded files, local configuration, and the uv environment. All
 # application code is replaced so removed frontend or backend files cannot linger.
-as_root install -d -m 0755 -o "$INSTALL_USER" -g "$INSTALL_GROUP" "$INSTALL_DIR"
-as_root install -d -m 0755 -o "$INSTALL_USER" -g "$INSTALL_GROUP" "$INSTALL_DIR/files"
+as_admin install -d -m 0755 "$INSTALL_DIR"
+as_admin install -d -m 0755 "$INSTALL_DIR/files"
 
 while IFS= read -r -d '' item; do
     name="${item##*/}"
     case "$name" in
         files|.venv|.env|.env.*) continue ;;
     esac
-    as_root rm -rf -- "$item"
+    as_admin rm -rf -- "$item"
 done < <(find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 -print0)
 
-tar -C "$STAGE_DIR" -cf - . | as_root tar -C "$INSTALL_DIR" -xf -
+tar -C "$STAGE_DIR" -cf - . | as_admin tar -C "$INSTALL_DIR" -xf -
 
 if [[ -d "$SOURCE_DIR/files" && "$SOURCE_DIR" != "$INSTALL_DIR" ]]; then
-    as_root cp -an "$SOURCE_DIR/files/." "$INSTALL_DIR/files/" 2>/dev/null || true
+    as_admin cp -an "$SOURCE_DIR/files/." "$INSTALL_DIR/files/" 2>/dev/null || true
 fi
 
-as_root chown -R "$INSTALL_USER:$INSTALL_GROUP" "$INSTALL_DIR"
-as_root chmod 0755 "$INSTALL_DIR" "$INSTALL_DIR/files"
+if [[ "$EUID" -eq 0 || "$USE_SUDO" -eq 1 ]]; then
+    as_admin chown -R "$INSTALL_USER:$INSTALL_GROUP" "$INSTALL_DIR"
+fi
+as_admin chmod 0755 "$INSTALL_DIR" "$INSTALL_DIR/files"
 
 printf 'Verifying installed files...\n'
 VERIFY_FAILED=0
 while IFS= read -r -d '' relative; do
-    if ! as_root cmp -s "$STAGE_DIR/$relative" "$INSTALL_DIR/$relative"; then
+    if ! as_admin cmp -s "$STAGE_DIR/$relative" "$INSTALL_DIR/$relative"; then
         printf 'Verification failed: %s\n' "$relative" >&2
         VERIFY_FAILED=1
     fi
@@ -208,8 +279,8 @@ cd "\$APP_DIR"
 exec "\$UV_BIN" run --project "\$APP_DIR" --locked --no-sync python app.py
 LAUNCHER
 
-as_root install -d -m 0755 "$BIN_DIR"
-as_root install -m 0755 "$LAUNCHER_TMP" "$COMMAND_PATH"
+as_admin install -d -m 0755 "$BIN_DIR"
+as_admin install -m 0755 "$LAUNCHER_TMP" "$COMMAND_PATH"
 
 printf '\n%s %s was installed successfully.\n\n' "$APP_NAME" "$APP_VERSION"
 printf 'Start:     nightwire\n'

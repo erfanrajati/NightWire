@@ -2,7 +2,7 @@
 
 ## `uv` is missing
 
-The source launchers and installer require `uv` in `PATH`.
+The source launchers require `uv` in `PATH`. The installers download `uv` automatically when it is missing.
 
 Check:
 
@@ -10,7 +10,7 @@ Check:
 uv --version
 ```
 
-After installing `uv`, reopen the terminal or update `PATH`, then run `./run.sh` or `./install.sh` again.
+If automatic installation fails, confirm `curl` or `wget` can reach `https://astral.sh` on Unix, or that PowerShell can reach it on Windows. After a manual install, reopen the terminal or update `PATH`.
 
 ## Python version errors
 
@@ -23,7 +23,7 @@ python3 --version
 For the system installer, select a specific interpreter:
 
 ```bash
-NIGHTWIRE_PYTHON=python3.12 ./install.sh
+NIGHTWIRE_PYTHON=3.12 ./install.sh
 ```
 
 ## Port already in use
@@ -82,11 +82,11 @@ For a custom source-tree directory, inspect the path set by `NIGHTWIRE_FILES_DIR
 
 Also verify that the filename is not trying to overwrite an existing password-protected file. Protected files cannot be overwritten under the same name.
 
-## A partial `.uploading-*` file appears
+## A partial upload file appears
 
-NightWire normally removes temporary upload files when a client disconnects or an upload fails. After an abnormal process termination, a hidden temporary file may remain.
+NightWire normally removes temporary upload files from `<files directory>/.nightwire-uploads/` when a client disconnects or an upload fails. The lifecycle worker automatically reclaims inactive entries older than 24 hours. After an abnormal process termination, a hexadecimal `.part` file may remain until that threshold is reached. Older installations can also contain legacy `.uploading-*` files in the files-directory root.
 
-Stop NightWire, confirm no upload is active, then remove only clearly stale `.uploading-*` files from the configured shared directory.
+Stop NightWire, confirm no upload is active, then remove only clearly stale `.part` files from `.nightwire-uploads/` (or clearly stale legacy `.uploading-*` files). Do not remove entries from `.nightwire-objects/` by hand; their names are resolved through metadata.
 
 ## Countdown did not delete an item
 
@@ -134,16 +134,17 @@ On Safari, close and reopen the tab or clear website data for the NightWire addr
 
 ## Installer cannot use `sudo`
 
-The current Linux system installer requires root privileges or a working `sudo` command, including when custom target paths are selected.
+The Unix installer needs `sudo` only when its application or command directory is not writable. The default system-wide paths normally require it.
 
-When neither is available, run NightWire directly from the source tree instead:
+When `sudo` is unavailable, select user-owned paths:
 
 ```bash
-chmod +x run.sh
-./run.sh
+NIGHTWIRE_INSTALL_DIR="$HOME/.local/share/nightwire" \
+NIGHTWIRE_BIN_DIR="$HOME/.local/bin" \
+./install.sh
 ```
 
-An administrator can later run `./install.sh`, or install into the desired system locations on your behalf.
+Ensure `$HOME/.local/bin` is in `PATH` afterward.
 
 ## Installed version did not change
 

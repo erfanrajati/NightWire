@@ -10,7 +10,7 @@
   <img alt="Release 1.0.2" src="https://img.shields.io/badge/release-1.0.2-9B7BFF?style=for-the-badge">
   <img alt="Python 3.11 or newer" src="https://img.shields.io/badge/python-3.11%2B-65B5FF?style=for-the-badge&logo=python&logoColor=07111F">
   <img alt="Starlette" src="https://img.shields.io/badge/Starlette-0.48%2B-5FFBF1?style=for-the-badge">
-  <img alt="Linux and Windows" src="https://img.shields.io/badge/platform-Linux%20%7C%20Windows-68F7C2?style=for-the-badge">
+  <img alt="Linux, macOS, and Windows" src="https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20Windows-68F7C2?style=for-the-badge">
   <img alt="LAN first" src="https://img.shields.io/badge/network-LAN--first-FF7BCB?style=for-the-badge">
   <img alt="Contributions welcome" src="https://img.shields.io/badge/contributions-welcome-B07BFF?style=for-the-badge">
 </p>
@@ -95,9 +95,10 @@ Built with Python, Starlette, Uvicorn, and a dependency-light frontend. File met
 ## 📦 Requirements
 
 - Python `3.11` or newer
-- [`uv`](https://docs.astral.sh/uv/) available in `PATH`
+- [`uv`](https://docs.astral.sh/uv/) (installed automatically by the installers)
 - A modern browser on the host or another device on the same network
-- For the Linux installer: `bash`, `tar`, `cmp`, and root access or `sudo`
+- On Fedora, Ubuntu, or macOS: `bash`, `tar`, `cmp`, and `curl` or `wget`
+- On Windows: Windows PowerShell 5.1+ or PowerShell 7+
 
 NightWire listens on all network interfaces and uses port `8080` by default.
 
@@ -129,13 +130,14 @@ PORT=9000 ./run.sh
 NIGHTWIRE_PORT=9000 ./run.sh
 ```
 
-### Install system-wide on Linux
+### Install on Fedora, Ubuntu, or macOS
 
-The installer stages and verifies the release before replacing the installed application. Its default locations are:
+The Unix installer stages and verifies the release before replacing the installed application. If `uv` is missing, it downloads the official standalone installer first. Its defaults are:
 
 ```text
-/srv/nightwire
-/usr/local/bin/nightwire
+Fedora/Ubuntu app:  /srv/nightwire
+macOS app:          /usr/local/share/nightwire
+Command:            /usr/local/bin/nightwire
 ```
 
 Install and launch:
@@ -170,17 +172,24 @@ NIGHTWIRE_BIN_DIR="$HOME/.local/bin" \
 ./install.sh
 ```
 
-The current installer still performs privileged staging and launcher installation, so run it as root or keep `sudo` available even when the target paths are user-owned.
+`sudo` is requested only when the selected paths are not writable by the current user.
 
-### Run on Windows
+### Install on Windows
 
-Install Python 3.11 or newer and `uv`, extract NightWire, then run:
+Extract NightWire, open PowerShell in the extracted directory, and run:
 
-```bat
-run.bat
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
-The Windows launcher uses port `8080` unless `PORT` or `NIGHTWIRE_PORT` is already set.
+The Windows installer uses per-user directories under `%LOCALAPPDATA%`, installs `uv` automatically when necessary, and adds the `nightwire` launcher to the user `PATH`. Open a new terminal after the first install, then run:
+
+```powershell
+nightwire
+nightwire --port 9000
+```
+
+For source-tree development, `run.bat` remains available and uses port `8080` unless `PORT` or `NIGHTWIRE_PORT` is already set.
 
 ## 🔄 Updating
 
@@ -227,7 +236,10 @@ NightWire is intentionally LAN-first and does not provide user accounts or per-d
 - Any connected client may change an item's auto-delete countdown.
 - Passwords protect access through NightWire; they do **not** encrypt files stored on disk.
 - Protected clipboard plaintext is withheld from synchronization responses until unlocked.
-- File lifecycle metadata is stored in `files/.nightwire-metadata.json`.
+- File lifecycle, object-ID, size, and SHA-256 metadata is stored in `files/.nightwire-metadata.json`.
+- New uploads use opaque permanent objects in `files/.nightwire-objects/` and isolated temporary storage in `files/.nightwire-uploads/`; original filenames remain visible download names.
+- Core detects MIME from stored bytes and records normalized security evidence; no malware scanner or verdict-based blocking is enabled by default.
+- Processor contracts record implementation versions and future derived objects; security-sensitive execution is deny-by-default until a real sandbox is configured.
 - Clipboard entries remain in server memory and disappear when the process restarts.
 
 Read [the complete security guide](DOCS/SECURITY.md) before using NightWire on a shared or sensitive network.
@@ -236,15 +248,23 @@ Read [the complete security guide](DOCS/SECURITY.md) before using NightWire on a
 
 ```text
 NightWire/
-├── app.py                    # Starlette server and API
+├── app.py                    # Compatibility import and executable launcher
+├── nightwire/
+│   ├── app/                  # Runtime composition, bootstrap, and middleware
+│   ├── core/                 # Storage, transfer, lifecycle, and security contracts
+│   ├── drop/                 # Drop domain, repository, services, and registration
+│   ├── library/              # Independently enabled Library module skeleton
+│   ├── processors/           # Processor results, registry, and sandbox contracts
+│   └── text/                 # Future Text module skeleton
 ├── static/
 │   ├── index.html            # Files, Clipboard, and Clients views
-│   ├── app.js                # Browser behavior and synchronization
+│   ├── app.js                # Shared browser application shell
+│   ├── drop.js               # Drop-owned behavior and synchronization
 │   ├── styles.css            # Responsive aurora interface
 │   └── assets/logo.svg       # Project logo
-├── files/                    # Shared files and lifecycle metadata
+├── files/                    # Preserved Core storage root and legacy shared files
 ├── tests/                    # Unit and integration-oriented tests
-├── install.sh                # Verified Linux installation/update flow
+├── install.sh / install.ps1  # Verified Unix and Windows installers
 ├── update-existing.sh        # Source-tree updater
 ├── run.sh / run.bat          # Development launchers
 └── DOCS/                     # Extended project documentation
