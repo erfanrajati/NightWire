@@ -28,6 +28,7 @@ from starlette.responses import FileResponse, HTMLResponse, JSONResponse, Redire
 from nightwire.app.bootstrap import build_application
 from nightwire.app.passwords import PasswordProtection
 from nightwire.core.config import SETTINGS, load_port
+from nightwire.core.capacity import CapacityExceededError, CommunityCapacityManager, UsageScope
 from nightwire.core.storage import (
     OBJECT_METADATA_DIRECTORY_NAME,
     OBJECTS_DIRECTORY_NAME,
@@ -38,9 +39,17 @@ from nightwire.core.storage import (
 from nightwire.core.lifecycle import CoreLifecycleService, LifecycleItem
 from nightwire.core.security import CoreSecurityPipeline, PasswordDigest
 from nightwire.core.transfer import CoreTransferService, TransferProgressStore
+from nightwire.drop.access import DropAccessKeyPolicy
 from nightwire.drop.compatibility import DropClientVisibilityService, DropClipboardService
 from nightwire.drop.repository import LocalDropRepository
-from nightwire.drop.service import DropService, ProtectedDropItemError, ProtectedDropOverwriteError
+from nightwire.drop.service import (
+    DropAccessDeniedError,
+    DropService,
+    MaliciousDropConfirmationRequiredError,
+    ProtectedDropItemError,
+    ProtectedDropOverwriteError,
+)
+from nightwire.text import TextLifecycle, TextObjectService, TextScopeKind, TextValidationError
 
 BASE_DIR = SETTINGS.base_dir
 FILES_DIR = SETTINGS.files_dir
@@ -58,6 +67,7 @@ CLIPBOARD_DEFAULT_EXPIRY_SECONDS = SETTINGS.clipboard_default_expiry_seconds
 FILE_DEFAULT_EXPIRY_SECONDS = SETTINGS.file_default_expiry_seconds
 ITEM_MIN_EXPIRY_SECONDS = SETTINGS.item_min_expiry_seconds
 ITEM_MAX_EXPIRY_SECONDS = SETTINGS.item_max_expiry_seconds
+ANONYMOUS_INTERNET_DROP_MAX_EXPIRY_SECONDS = SETTINGS.anonymous_internet_drop_max_expiry_seconds
 PASSWORD_MAX_CHARACTERS = SETTINGS.password_max_characters
 CLIPBOARD_ENTRY_ID_PATTERN = re.compile(r"^[0-9a-f]{32}$")
 FILE_METADATA_FILENAME = SETTINGS.file_metadata_filename
@@ -66,9 +76,18 @@ STARTED_AT = datetime.now(timezone.utc)
 STORAGE_BACKEND = LocalFilesystemStorage(FILES_DIR)
 TRANSFER_PROGRESS = TransferProgressStore()
 TRANSFER_SERVICE = CoreTransferService(STORAGE_BACKEND, progress_store=TRANSFER_PROGRESS)
+CAPACITY_MANAGER = CommunityCapacityManager(
+    FILES_DIR, installation_limit=SETTINGS.installation_max_bytes,
+    personal_limit=SETTINGS.personal_library_quota_bytes,
+    workspace_limit=SETTINGS.workspace_quota_bytes, drop_limit=SETTINGS.drop_quota_bytes,
+    object_limit=SETTINGS.maximum_object_bytes, minimum_free=SETTINGS.minimum_host_free_bytes,
+)
+TRANSFER_SERVICE.set_capacity_manager(CAPACITY_MANAGER)
 LIFECYCLE_SERVICE = CoreLifecycleService()
 SECURITY_PIPELINE = CoreSecurityPipeline(STORAGE_BACKEND)
 PASSWORD_PROTECTION = PasswordProtection(PASSWORD_MAX_CHARACTERS)
+DROP_ACCESS_KEYS = DropAccessKeyPolicy()
+TEXT_OBJECTS = TextObjectService()
 
 _ACTIVE_CLIENTS: dict[str, dict[str, Any]] = {}
 _CLIENTS_LOCK = threading.RLock()
@@ -127,6 +146,26 @@ DROP_REPOSITORY = LocalDropRepository(
 )
 
 
+def _physical_usage(scope: UsageScope) -> int:
+    if scope.kind != "installation":
+        return 0
+    storage = current_storage_backend()
+    objects = sum(path.stat().st_size for path in storage.objects_root.iterdir() if path.is_file())
+    legacy = sum(path.stat().st_size for path in storage.storage_root.iterdir()
+                 if path.is_file() and path.name != FILE_METADATA_FILENAME)
+    return objects + legacy
+
+
+def _drop_usage(scope: UsageScope) -> int:
+    if scope.kind != "drop":
+        return 0
+    return sum(item.size or 0 for item in DROP_REPOSITORY.list())
+
+
+CAPACITY_MANAGER.add_usage_source(_physical_usage)
+CAPACITY_MANAGER.add_usage_source(_drop_usage)
+
+
 def current_storage_backend() -> LocalFilesystemStorage:
     """Return the configured backend, adapting when tests replace FILES_DIR."""
 
@@ -139,7 +178,14 @@ def current_transfer_service(storage: LocalFilesystemStorage | None = None) -> C
     resolved_storage = storage or current_storage_backend()
     if TRANSFER_SERVICE.storage is resolved_storage:
         return TRANSFER_SERVICE
-    return CoreTransferService(resolved_storage, progress_store=TRANSFER_PROGRESS)
+    transfer = CoreTransferService(resolved_storage, progress_store=TRANSFER_PROGRESS)
+    capacity = CAPACITY_MANAGER if resolved_storage.storage_root == FILES_DIR else CommunityCapacityManager(resolved_storage.storage_root)
+    transfer.set_capacity_manager(capacity)
+    return transfer
+
+
+def current_capacity_manager() -> CommunityCapacityManager:
+    return CAPACITY_MANAGER
 
 
 def current_security_pipeline(storage: LocalFilesystemStorage | None = None) -> CoreSecurityPipeline:
@@ -159,12 +205,17 @@ def current_drop_service() -> DropService:
         lifecycle=LIFECYCLE_SERVICE,
         security=current_security_pipeline(storage),
         passwords=PASSWORD_PROTECTION,
+        access_keys=DROP_ACCESS_KEYS,
         validate_name=safe_file_path,
         lock=_FILES_LOCK,
         metadata_filename=FILE_METADATA_FILENAME,
         default_expiry_seconds=FILE_DEFAULT_EXPIRY_SECONDS,
         minimum_expiry_seconds=ITEM_MIN_EXPIRY_SECONDS,
         maximum_expiry_seconds=ITEM_MAX_EXPIRY_SECONDS,
+        deployment_profile=SETTINGS.deployment_profile,
+        anonymous_internet_maximum_expiry_seconds=ANONYMOUS_INTERNET_DROP_MAX_EXPIRY_SECONDS,
+        trusted_network_relaxed_access=SETTINGS.trusted_network_relaxed_access,
+        trusted_network_active_drop_browsing=SETTINGS.trusted_network_active_drop_browsing,
     )
 
 
@@ -391,6 +442,7 @@ def delete_file_record(name: str, password: object = None) -> None:
 
 def _public_clipboard_entry(entry: dict[str, Any]) -> dict[str, Any]:
     protected = entry.get("password") is not None
+    text_object = entry.get("text_object") if isinstance(entry.get("text_object"), dict) else {}
     return {
         "id": entry["id"],
         "text": None if protected else entry["text"],
@@ -401,6 +453,11 @@ def _public_clipboard_entry(entry: dict[str, Any]) -> dict[str, Any]:
         "created_at": entry["created_at"],
         "expires_at": entry.get("expires_at"),
         "password_protected": protected,
+        "text_object_id": text_object.get("id", entry["id"]),
+        "title": text_object.get("title", "Shared clipboard text"),
+        "mode": text_object.get("mode", "plain"),
+        "language": text_object.get("language"),
+        "lifecycle": "temporary",
     }
 
 
@@ -440,15 +497,26 @@ def add_clipboard_entry(
 ) -> tuple[int, dict[str, Any]]:
     global _CLIPBOARD_REVISION
     created = time.time()
+    text_id = uuid.uuid4().hex
+    expires_at = _expires_at_from_seconds(expires_in_seconds, created)
+    text_object = TEXT_OBJECTS.build(
+        text_id=text_id, title="Shared clipboard text", content=text, mode="plain",
+        scope_kind=TextScopeKind.DROP, scope_id=client_id,
+        lifecycle=TextLifecycle.TEMPORARY,
+        expires_at=datetime.fromisoformat(expires_at) if expires_at else None,
+        source_kind="clipboard_client", source_id=client_id,
+        now=datetime.fromtimestamp(created, tz=timezone.utc),
+    )
     entry = {
-        "id": uuid.uuid4().hex,
+        "id": text_id,
         "text": text,
         "client_id": client_id,
         "source": source,
         "ip_address": ip_address,
         "created_at": utc_iso(created),
-        "expires_at": _expires_at_from_seconds(expires_in_seconds, created),
+        "expires_at": expires_at,
         "password": create_password_record(password) if password else None,
+        "text_object": text_object.to_record(),
     }
 
     with _CLIPBOARD_LOCK:
@@ -475,6 +543,10 @@ def update_clipboard_settings(entry_id: str, payload: dict[str, Any]) -> tuple[i
         if entry is None:
             raise FileNotFoundError("Shared clipboard entry not found.")
         _apply_item_settings(entry, payload, default_expiry=CLIPBOARD_DEFAULT_EXPIRY_SECONDS)
+        text_object = entry.get("text_object")
+        if isinstance(text_object, dict):
+            text_object["expires_at"] = entry.get("expires_at")
+            text_object["updated_at"] = utc_iso()
         _CLIPBOARD_REVISION += 1
         return _CLIPBOARD_REVISION, _public_clipboard_entry(entry)
 
@@ -783,13 +855,113 @@ async def page(_: Request) -> Response:
     return FileResponse(index_path, media_type="text/html", headers={"Cache-Control": "no-store"})
 
 
+def _drop_share_url(request: Request, filename: str, access_key: str | None) -> str:
+    root = str(request.base_url).rstrip("/")
+    target = f"{root}/drop/{quote(filename)}"
+    return f"{target}?key={quote(access_key, safe='')}" if access_key else target
+
+
+def _drop_download_url(filename: str, access_key: str | None) -> str:
+    target = f"/download/{quote(filename)}"
+    return f"{target}?key={quote(access_key, safe='')}" if access_key else target
+
+
+def _malicious_download_confirmed(request: Request, payload: dict[str, object] | None = None) -> bool:
+    """Accept only an explicit confirmation token from the download interaction."""
+
+    return (
+        request.query_params.get("confirm_malicious") == "true"
+        or request.headers.get("x-nightwire-confirm-malicious") == "true"
+        or (payload is not None and payload.get("confirm_malicious") is True)
+    )
+
+
+def _malicious_confirmation_response(exc: Exception) -> JSONResponse:
+    return JSONResponse(
+        {
+            "error": str(exc),
+            "security_verdict": "malicious",
+            "confirmation_required": True,
+        },
+        status_code=409,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+async def drop_share_page(request: Request) -> Response:
+    filename = request.path_params["filename"]
+    try:
+        current_drop_service().recipient_record(filename, request.query_params.get("key"))
+    except DropAccessDeniedError as exc:
+        return HTMLResponse(str(exc), status_code=403, headers={"Cache-Control": "no-store"})
+    except (FileNotFoundError, ValueError) as exc:
+        return HTMLResponse(str(exc), status_code=404, headers={"Cache-Control": "no-store"})
+    share_page = STATIC_DIR / "drop-share.html"
+    if not share_page.is_file():
+        return HTMLResponse("NightWire Drop share assets are missing.", status_code=500)
+    return FileResponse(share_page, media_type="text/html", headers={"Cache-Control": "no-store"})
+
+
+async def drop_share_info(request: Request) -> JSONResponse:
+    filename = request.path_params["filename"]
+    access_key = request.query_params.get("key")
+    try:
+        record = current_drop_service().recipient_record(filename, access_key)
+    except DropAccessDeniedError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=403)
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except FileNotFoundError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=404)
+    record["download_url"] = _drop_download_url(filename, access_key)
+    return JSONResponse(
+        {"drop": record, "share_url": _drop_share_url(request, filename, access_key)},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 async def list_files(_: Request) -> JSONResponse:
     service = current_drop_service()
+    if not service.active_drop_browsing_allowed:
+        return JSONResponse(
+            {"error": "Active Drop browsing is disabled by the deployment policy."},
+            status_code=403,
+            headers={"Cache-Control": "no-store"},
+        )
     files = [service.public_record(item) for item in service.list_items()]
     files.sort(key=lambda item: item["modified"], reverse=True)
     usage = shutil.disk_usage(FILES_DIR)
     return JSONResponse(
-        {"files": files, "storage": {"total": usage.total, "used": usage.used, "free": usage.free}},
+        {"files": files, "storage": {"total": usage.total, "used": usage.used, "free": usage.free},
+         "usage": CAPACITY_MANAGER.report(UsageScope("drop")),
+         "installation": CAPACITY_MANAGER.installation_report()},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+async def list_active_drops(request: Request) -> JSONResponse:
+    service = current_drop_service()
+    if not service.active_drop_browsing_allowed:
+        return JSONResponse(
+            {"error": "Active Drop browsing is disabled by the deployment policy."},
+            status_code=403,
+            headers={"Cache-Control": "no-store"},
+        )
+    drops = []
+    for item in service.list_items():
+        record = service.public_record(item)
+        if service.access_key_enforced and item.access_key_required:
+            record["share_url"] = None
+        else:
+            record["share_url"] = _drop_share_url(request, item.name, None)
+            record["download_url"] = _drop_download_url(item.name, None)
+        drops.append(record)
+    drops.sort(key=lambda item: item["modified"], reverse=True)
+    usage = shutil.disk_usage(FILES_DIR)
+    return JSONResponse(
+        {"drops": drops, "storage": {"total": usage.total, "used": usage.used, "free": usage.free},
+         "usage": CAPACITY_MANAGER.report(UsageScope("drop")),
+         "installation": CAPACITY_MANAGER.installation_report()},
         headers={"Cache-Control": "no-store"},
     )
 
@@ -808,6 +980,9 @@ async def server_info(request: Request) -> JSONResponse:
             "clipboard_history_limit": CLIPBOARD_HISTORY_LIMIT,
             "clipboard_default_expiry_seconds": CLIPBOARD_DEFAULT_EXPIRY_SECONDS,
             "file_default_expiry_seconds": FILE_DEFAULT_EXPIRY_SECONDS,
+            "drop_max_expiry_seconds": current_drop_service().effective_maximum_expiry_seconds,
+            "drop_access_key_required": current_drop_service().access_key_enforced,
+            "active_drop_browsing": current_drop_service().active_drop_browsing_allowed,
             "item_min_expiry_seconds": ITEM_MIN_EXPIRY_SECONDS,
             "item_max_expiry_seconds": ITEM_MAX_EXPIRY_SECONDS,
             "password_max_characters": PASSWORD_MAX_CHARACTERS,
@@ -1002,13 +1177,20 @@ async def upload_file(request: Request) -> JSONResponse:
             request.headers.get("x-nightwire-expires-in-seconds")
         )
         service = current_drop_service()
+        content_kind = request.headers.get("x-nightwire-drop-kind", "file").strip().lower()
+        if content_kind not in {"file", "voice"}:
+            raise ValueError("Binary Drop content kind must be file or voice.")
         uploaded = await service.upload(
             filename=filename,
             chunks=request.stream(),
             expires_in_seconds=expires_in_seconds,
             password=getattr(request.state, "drop_creation_password", None),
             declared_mime=request.headers.get("content-type"),
+            content_kind=content_kind,
+            expected_bytes=int(request.headers["content-length"]) if request.headers.get("content-length") else None,
         )
+    except CapacityExceededError as exc:
+        return JSONResponse({"error": str(exc), "code": "capacity_exceeded"}, status_code=413)
     except ProtectedDropOverwriteError as exc:
         return JSONResponse({"error": str(exc)}, status_code=409)
     except ClientDisconnect:
@@ -1016,11 +1198,19 @@ async def upload_file(request: Request) -> JSONResponse:
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
 
+    return _drop_upload_response(request, service, uploaded)
+
+
+def _drop_upload_response(request: Request, service: DropService, uploaded) -> JSONResponse:
+    file_record = service.public_record(uploaded.item)
+    file_record["download_url"] = _drop_download_url(uploaded.item.name, uploaded.access_key)
     return JSONResponse(
         {
             "ok": True,
             "transfer_id": uploaded.transfer_id,
-            "file": service.public_record(uploaded.item),
+            "file": file_record,
+            "access_key": uploaded.access_key,
+            "share_url": _drop_share_url(request, uploaded.item.name, uploaded.access_key),
             "bytes_written": uploaded.bytes_written,
             "checksum_sha256": uploaded.checksum_sha256,
             "seconds": round(uploaded.seconds, 3),
@@ -1029,6 +1219,46 @@ async def upload_file(request: Request) -> JSONResponse:
         status_code=201,
         headers={"Cache-Control": "no-store"},
     )
+
+
+async def share_drop_text(request: Request) -> JSONResponse:
+    try:
+        payload = await read_json_payload(request, maximum=CLIPBOARD_PAYLOAD_LIMIT)
+        text = normalize_clipboard_text(payload.get("text"))
+        password = normalize_optional_password(payload.get("password"))
+        mode = payload.get("mode", "plain")
+        language = payload.get("language")
+        title = payload.get("title") or "Shared Text"
+        text_id = uuid.uuid4().hex
+        filename = f"text-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}-{text_id[:8]}.txt"
+        text_object = TEXT_OBJECTS.build(
+            text_id=text_id, title=title, content=text, mode=mode, language=language,
+            scope_kind=TextScopeKind.DROP, scope_id=filename,
+            lifecycle=TextLifecycle.TEMPORARY,
+            source_kind=payload.get("source_kind"), source_id=payload.get("source_id"),
+        )
+
+        async def chunks():
+            yield text.encode("utf-8")
+
+        service = current_drop_service()
+        uploaded = await service.upload(
+            filename=filename,
+            chunks=chunks(),
+            expires_in_seconds=payload.get("expires_in_seconds"),
+            password=password,
+            declared_mime="text/plain; charset=utf-8",
+            content_kind="text",
+            expected_bytes=len(text.encode("utf-8")),
+            text_object=text_object,
+        )
+    except CapacityExceededError as exc:
+        return JSONResponse({"error": str(exc), "code": "capacity_exceeded"}, status_code=413)
+    except OverflowError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=413)
+    except (ValueError, TextValidationError) as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    return _drop_upload_response(request, service, uploaded)
 
 
 async def patch_file(request: Request) -> JSONResponse:
@@ -1075,7 +1305,15 @@ def _object_download_response(request: Request, filename: str, object_id: Object
 async def download_file(request: Request) -> Response:
     filename = request.path_params["filename"]
     try:
-        download = current_drop_service().download(filename)
+        download = current_drop_service().download(
+            filename,
+            access_key=request.query_params.get("key"),
+            confirmed_malicious=_malicious_download_confirmed(request),
+        )
+    except DropAccessDeniedError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=403)
+    except MaliciousDropConfirmationRequiredError as exc:
+        return _malicious_confirmation_response(exc)
     except ProtectedDropItemError as exc:
         return JSONResponse({"error": str(exc)}, status_code=401)
     except ValueError as exc:
@@ -1100,12 +1338,18 @@ async def download_protected_file(request: Request) -> Response:
         download = current_drop_service().download(
             filename,
             supplied_password=payload.get("password"),
+            access_key=request.query_params.get("key"),
             verify_protected=True,
+            confirmed_malicious=_malicious_download_confirmed(request, payload),
         )
     except OverflowError as exc:
         return JSONResponse({"error": str(exc)}, status_code=413)
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
+    except DropAccessDeniedError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=403)
+    except MaliciousDropConfirmationRequiredError as exc:
+        return _malicious_confirmation_response(exc)
     except PermissionError as exc:
         return JSONResponse({"error": str(exc)}, status_code=403)
     except FileNotFoundError as exc:
@@ -1147,14 +1391,25 @@ async def security_headers(request: Request, call_next):
     response.headers.setdefault(
         "Content-Security-Policy",
         "default-src 'self'; img-src 'self' data: blob:; connect-src 'self'; "
-        "style-src 'self'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'",
+        "media-src 'self' blob:; style-src 'self'; script-src 'self'; "
+        "base-uri 'none'; frame-ancestors 'none'",
     )
     return response
+
+
+def object_is_referenced(object_id: ObjectId) -> bool:
+    """Expose Drop references to other modules without coupling their repositories."""
+    with _FILES_LOCK:
+        return any(item.object_id == object_id for item in DROP_REPOSITORY.list())
 
 
 ROUTE_HANDLERS = {
     "root": root,
     "page": page,
+    "drop_share_page": drop_share_page,
+    "drop_share_info": drop_share_info,
+    "list_active_drops": list_active_drops,
+    "share_drop_text": share_drop_text,
     "list_files": list_files,
     "server_info": server_info,
     "list_devices": list_devices,
@@ -1173,6 +1428,8 @@ ROUTE_HANDLERS = {
     "download_file": download_file,
     "start_cleanup_worker": start_cleanup_worker,
     "stop_cleanup_worker": stop_cleanup_worker,
+    "object_is_referenced": object_is_referenced,
+    "capacity_manager": current_capacity_manager,
 }
 
 app = build_application(SETTINGS, ROUTE_HANDLERS, http_middleware=[security_headers])

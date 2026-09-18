@@ -7,7 +7,7 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, Mapping
 
 from nightwire.core.storage import ObjectId, StorageBackend
 
@@ -18,6 +18,67 @@ class SecurityVerdict(StrEnum):
     MALICIOUS = "malicious"
     SCAN_FAILED = "scan_failed"
     UNSCANNED = "unscanned"
+
+
+class SecurityAction(StrEnum):
+    """Actions whose safety depends on a persisted security verdict."""
+
+    OPAQUE_STORAGE = "opaque_storage"
+    DOWNLOAD = "download"
+    RISKY_PROCESSING = "risky_processing"
+
+
+@dataclass(frozen=True, slots=True)
+class SecurityPolicyDecision:
+    allowed: bool
+    reason: str | None = None
+    confirmation_required: bool = False
+
+
+class CoreSecurityPolicy:
+    """Central enforcement for actions performed on stored content.
+
+    A malicious verdict is evidence that must be retained, not a reason to
+    destroy the object. It may still be downloaded after an explicit
+    confirmation, but it must never be passed to a risky processor.
+    """
+
+    @staticmethod
+    def _verdict(value: SecurityVerdict | str | None) -> SecurityVerdict:
+        try:
+            return SecurityVerdict(value)
+        except (TypeError, ValueError):
+            return SecurityVerdict.UNSCANNED
+
+    def evaluate(
+        self,
+        verdict: SecurityVerdict | str | None,
+        action: SecurityAction,
+        *,
+        confirmed: bool = False,
+        risky: bool = True,
+    ) -> SecurityPolicyDecision:
+        normalized = self._verdict(verdict)
+        if action is SecurityAction.OPAQUE_STORAGE:
+            return SecurityPolicyDecision(True)
+        if action is SecurityAction.DOWNLOAD and normalized is SecurityVerdict.MALICIOUS:
+            if confirmed:
+                return SecurityPolicyDecision(True)
+            return SecurityPolicyDecision(
+                False,
+                "This Drop was reported as malicious. Deliberate confirmation is required to download it.",
+                confirmation_required=True,
+            )
+        if (
+            action is SecurityAction.RISKY_PROCESSING
+            and risky
+            and normalized is SecurityVerdict.MALICIOUS
+        ):
+            return SecurityPolicyDecision(
+                False,
+                "Risky processing is blocked for content reported as malicious.",
+            )
+        return SecurityPolicyDecision(True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +114,8 @@ class MalwareScanResult:
     verdict: SecurityVerdict
     scanner: str
     details: str | None = None
+    scanner_version: str | None = None
+    signature_metadata: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +124,8 @@ class SecurityResult:
     detection: MimeDetection
     comparison: MimeComparison
     scanner: str | None
+    scanner_version: str | None
+    signature_metadata: Mapping[str, Any]
     findings: tuple[str, ...]
     inspected_at: float
 
@@ -76,6 +141,8 @@ class SecurityResult:
             "declared_matches_detected": self.comparison.declared_matches_detected,
             "mismatches": list(self.comparison.mismatches),
             "scanner": self.scanner,
+            "scanner_version": self.scanner_version,
+            "signature_metadata": dict(self.signature_metadata),
             "findings": list(self.findings),
             "inspected_at": self.inspected_at,
         }
@@ -88,6 +155,18 @@ class MalwareScannerAdapter(ABC):
     @abstractmethod
     def name(self) -> str:
         """Stable scanner implementation name."""
+
+    @property
+    def version(self) -> str | None:
+        """Scanner engine/adapter version captured with each scan."""
+
+        return None
+
+    @property
+    def signature_metadata(self) -> Mapping[str, Any]:
+        """Current signature-set identifiers, versions, or update timestamps."""
+
+        return {}
 
     @abstractmethod
     async def scan(
@@ -154,7 +233,18 @@ def detect_mime_signature(content: bytes) -> MimeDetection:
         if content.startswith(signature):
             return MimeDetection(mime_type=mime_type, basis=basis, confidence="high")
     if len(content) >= 12 and content[4:8] == b"ftyp":
-        return MimeDetection(mime_type="video/mp4", basis="iso-base-media-signature", confidence="high")
+        # MediaRecorder on Safari emits ISO-BMFF audio. The generic ftyp marker
+        # alone does not distinguish audio from video, but M4A/M4B brands and an
+        # audio handler in the inspected prefix do.
+        brand = content[8:12]
+        audio_container = brand in {b"M4A ", b"M4B ", b"M4P "} or (
+            b"hdlr" in content and b"soun" in content
+        )
+        return MimeDetection(
+            mime_type="audio/mp4" if audio_container else "video/mp4",
+            basis="iso-base-media-audio-signature" if audio_container else "iso-base-media-signature",
+            confidence="high",
+        )
     if len(content) >= 12 and content.startswith(b"RIFF") and content[8:12] == b"WEBP":
         return MimeDetection(mime_type="image/webp", basis="webp-signature", confidence="high")
     if content.startswith((b"II*\x00", b"MM\x00*")):
@@ -218,17 +308,25 @@ class CoreSecurityPipeline(SecurityPipeline):
         comparison = compare_mime_evidence(filename, declared_mime, detection.mime_type)
         findings = [f"mime_mismatch:{source}" for source in comparison.mismatches]
         scanner_name = None
+        scanner_version = None
+        signature_metadata: Mapping[str, Any] = {}
         scanner_verdict = SecurityVerdict.UNSCANNED
         if self.scanner is not None:
-            scanner_name = self.scanner.name
             try:
+                scanner_name = self.scanner.name
+                scanner_version = self.scanner.version
+                signature_metadata = dict(self.scanner.signature_metadata)
                 scan = await self.scanner.scan(object_id, self.storage, detection.mime_type)
                 scanner_name = scan.scanner
+                scanner_version = scan.scanner_version or scanner_version
+                signature_metadata = dict(scan.signature_metadata or signature_metadata)
                 scanner_verdict = SecurityVerdict(scan.verdict)
                 if scan.details:
                     findings.append(scan.details)
             except Exception as exc:
                 scanner_verdict = SecurityVerdict.SCAN_FAILED
+                if scanner_name is None:
+                    scanner_name = type(self.scanner).__name__
                 findings.append(f"scanner_error:{type(exc).__name__}")
 
         if scanner_verdict is SecurityVerdict.MALICIOUS:
@@ -247,6 +345,8 @@ class CoreSecurityPipeline(SecurityPipeline):
             detection=detection,
             comparison=comparison,
             scanner=scanner_name,
+            scanner_version=scanner_version,
+            signature_metadata=signature_metadata,
             findings=tuple(findings),
             inspected_at=time.time(),
         )
@@ -258,12 +358,15 @@ class CoreSecurityPipeline(SecurityPipeline):
 
 __all__ = [
     "CoreSecurityPipeline",
+    "CoreSecurityPolicy",
     "MalwareScanResult",
     "MalwareScannerAdapter",
     "MimeComparison",
     "MimeDetection",
     "PasswordDigest",
     "SecurityPipeline",
+    "SecurityAction",
+    "SecurityPolicyDecision",
     "SecurityResult",
     "SecurityVerdict",
     "compare_mime_evidence",

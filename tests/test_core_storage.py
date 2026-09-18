@@ -15,6 +15,7 @@ from nightwire.core.storage import (
 )
 from nightwire.core.transfer import CoreTransferService, TransferService
 from nightwire.core.transfer import TransferDirection, TransferPhase, TransferProgressStore
+from nightwire.core.capacity import CapacityExceededError, CommunityCapacityManager, UsageScope
 
 
 class _ImmediateAsyncFile:
@@ -195,6 +196,19 @@ class CoreTransferServiceTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "stream failed"):
                 asyncio.run(self.transfer.receive_upload(failing_stream()))
 
+        self.assertEqual(list(self.storage.temporary_uploads_root.iterdir()), [])
+        self.assertEqual(list(self.storage.objects_root.iterdir()), [])
+
+    def test_streaming_limit_abort_removes_temporary_and_never_finalizes(self):
+        self.transfer.set_capacity_manager(
+            CommunityCapacityManager(Path(self.temporary.name), object_limit=5)
+        )
+        async def stream():
+            yield b"123"
+            yield b"456"
+        with mock.patch("nightwire.core.storage.anyio.open_file", new=_immediate_open_file):
+            with self.assertRaisesRegex(CapacityExceededError, "Maximum object size"):
+                asyncio.run(self.transfer.receive_upload(stream(), usage_scope=UsageScope("drop")))
         self.assertEqual(list(self.storage.temporary_uploads_root.iterdir()), [])
         self.assertEqual(list(self.storage.objects_root.iterdir()), [])
 

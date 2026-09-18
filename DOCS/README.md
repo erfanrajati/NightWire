@@ -20,6 +20,6 @@ Start with the repository-level [README](../README.md) for the project overview 
 ## Documentation conventions
 
 - Commands are written for a shell in the project root unless another directory is shown.
-- `0` seconds means unlimited retention.
+- `0` seconds means unlimited retention for clipboard and compatible legacy items; new Drops require a positive lifetime.
 - Security guidance assumes the default HTTP deployment on a trusted LAN.
 - API examples describe version `1.0.2` and may change in a future major release.

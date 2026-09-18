@@ -16,57 +16,27 @@
       <a class="brand" href="/files" data-route-link="files" aria-label="NightWire files">
         <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
         <div>
-          <p class="eyebrow">LOCAL SHARING NODE</p>
-          <h1>Night<span>Wire</span></h1>
+          <p class="eyebrow">SECURE DROP</p>
+          <h1>Night<span>Wire</span> Drop</h1>
         </div>
       </a>
       <div class="status-pill"><i></i><span id="statusText">Connecting</span></div>
     </header>
 
-    <nav class="main-navigation" aria-label="NightWire pages">
-      <a class="nav-item" href="/files" data-route="files">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h7l2 2h9v11H3zM3 7V4h7l2 3"></path></svg>
-        <span><strong>Files</strong><small>Upload &amp; download</small></span>
-      </a>
-      <a class="nav-item" href="/clipboard" data-route="clipboard">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5h6m-7 3h8m-9 3h10M8 3h8v4H8zM6 5H5a2 2 0 0 0-2 2v13h18V7a2 2 0 0 0-2-2h-1"></path></svg>
-        <span><strong>Clipboard</strong><small>Shared text manager</small></span>
-      </a>
-      <a class="nav-item" href="/clients" data-route="clients">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8.5-1a3.5 3.5 0 1 0 0-7M2 21a6 6 0 0 1 12 0m1-7.5A5.5 5.5 0 0 1 22 19"></path></svg>
-        <span><strong>Clients</strong><small>Devices &amp; QR</small></span>
-      </a>
-    </nav>
-
     <section id="filesPage" class="page-view" data-page="files" hidden>
-      <section class="hero-grid">
-        <div class="hero-copy">
-          <p class="eyebrow">FILE SHARING</p>
-          <h2>Move files at full LAN speed</h2>
-          <p class="subtitle">Uploads stream directly to disk. Choose optional protection before uploading; passwords are permanent, while auto-delete can be changed later by any connected client.</p>
-          <div class="quick-stats">
-            <div><span id="fileCount">0</span><small>FILES</small></div>
-            <div><span id="storageFree">—</span><small>FREE</small></div>
-            <div><span id="protectedFileCount">0</span><small>LOCKED</small></div>
-          </div>
-        </div>
-
-        <section id="dropzone" class="dropzone" tabindex="0" aria-label="Upload files">
-          <input id="fileInput" type="file" multiple hidden>
-          <div class="upload-emblem" aria-hidden="true">
-            <svg viewBox="0 0 64 64"><path class="upload-cloud" d="M19.5 48.5h27A11.5 11.5 0 0 0 48 25.6 16.5 16.5 0 0 0 16.7 21 13.8 13.8 0 0 0 19.5 48.5Z"></path><path class="upload-arrow" d="M32 43V25m0 0-7 7m7-7 7 7"></path></svg>
-          </div>
-          <h3>Drop files to transmit</h3>
-          <p>or <button id="browseButton" type="button">browse your device</button></p>
-          <small>New files default to unlimited retention and no password</small>
-          <div class="creation-options upload-options" data-upload-control>
-            <label class="option-field">
-              <span>Auto-delete</span>
+      <section class="drop-product" aria-label="Create a Secure Drop">
+        <section class="drop-composer" aria-label="Create a Drop">
+          <div class="lifetime-control">
+            <div>
+              <p class="eyebrow">LIFETIME</p>
+              <strong>Burn after</strong>
+            </div>
+            <label class="option-field lifetime-select">
+              <span class="sr-only">Drop lifetime</span>
               <select id="fileExpiryPreset">
-                <option value="0" selected>Unlimited / never</option>
                 <option value="600">10 minutes</option>
                 <option value="1800">30 minutes</option>
-                <option value="3600">1 hour</option>
+                <option value="3600" selected>1 hour</option>
                 <option value="21600">6 hours</option>
                 <option value="86400">24 hours</option>
                 <option value="custom">Custom duration…</option>
@@ -76,17 +46,53 @@
               <input id="fileCustomExpiry" type="number" min="1" max="525600" step="1" value="60" inputmode="numeric">
               <span>minutes</span>
             </label>
-            <div class="password-pair">
-              <label class="option-field">
-                <span>Optional password</span>
-                <input id="filePassword" type="password" maxlength="256" autocomplete="new-password" placeholder="Leave empty for no password">
+          </div>
+
+          <div class="drop-method-grid">
+            <section id="dropzone" class="drop-method file-drop-method" tabindex="0" aria-label="Choose a file Drop">
+              <input id="fileInput" type="file" hidden>
+              <div class="method-icon" aria-hidden="true">
+                <svg viewBox="0 0 32 32"><path d="M6 9h8l3 3h9v14H6zM6 9V6h8l3 3"></path><path d="M16 22v-7m0 0-3 3m3-3 3 3"></path></svg>
+              </div>
+              <p class="eyebrow">FILE</p>
+              <h3>Drop a file here</h3>
+              <p>or tap anywhere to choose one</p>
+            </section>
+
+            <section class="drop-method voice-drop-method" aria-labelledby="voiceDropTitle">
+              <div class="method-heading">
+                <div class="method-icon voice-icon" aria-hidden="true">●</div>
+                <div><p class="eyebrow">VOICE</p><h3 id="voiceDropTitle">Record a message</h3></div>
+              </div>
+              <div class="voice-visualizer-shell" aria-hidden="true">
+                <canvas id="voiceVisualizer" class="voice-visualizer" width="480" height="112"></canvas>
+                <span id="voiceElapsed" class="voice-elapsed">00:00</span>
+              </div>
+              <div class="voice-recorder">
+                <input id="voiceCaptureInput" type="file" accept="audio/*" capture hidden>
+                <button id="recordVoiceButton" class="secondary-button" type="button">Start recording</button>
+                <button id="stopVoiceButton" class="danger-button hidden" type="button">Stop &amp; share</button>
+                <small id="voiceStatus">Microphone access is requested only when you start.</small>
+              </div>
+            </section>
+
+            <section class="drop-method text-drop-method" aria-labelledby="textDropTitle">
+              <div class="method-heading">
+                <div class="method-icon" aria-hidden="true">T</div>
+                <div><p class="eyebrow">TEXT</p><h3 id="textDropTitle">Paste text</h3></div>
+              </div>
+              <div class="drop-text-options">
+                <label><span>Title</span><input id="dropTextTitle" type="text" maxlength="255" value="Shared Text" autocomplete="off"></label>
+                <label><span>Mode</span><select id="dropTextMode"><option value="plain">Plain text</option><option value="markdown">Markdown</option><option value="code">Source code</option></select></label>
+                <label id="dropTextLanguageWrap" class="hidden"><span>Language</span><select id="dropTextLanguage"><option value="">Auto-detect</option><option>javascript</option><option>typescript</option><option>python</option><option>html</option><option>css</option><option>sql</option><option>shell</option><option>json</option><option>yaml</option></select></label>
+              </div>
+              <label class="quick-text-compose">
+                <span class="sr-only">Text to share</span>
+                <textarea id="dropTextInput" rows="8" maxlength="32768" placeholder="Paste or type temporary text…"></textarea>
+                <small id="dropTextCharacterCount">0 / 32,768</small>
               </label>
-              <label id="filePasswordConfirmWrap" class="option-field hidden">
-                <span>Confirm password</span>
-                <input id="filePasswordConfirm" type="password" maxlength="256" autocomplete="new-password">
-              </label>
-            </div>
-            <small class="immutable-note">A password set here cannot be changed or removed after upload.</small>
+              <button id="shareTextDropButton" class="primary-button" type="button" disabled>Share text</button>
+            </section>
           </div>
         </section>
       </section>
@@ -99,24 +105,25 @@
         <div id="transferList" class="transfer-list"></div>
       </section>
 
-      <section class="panel library-panel">
+      <section id="activeDropsPanel" class="panel library-panel hidden">
         <div class="panel-heading library-heading">
-          <div><p class="eyebrow">SHARED DIRECTORY</p><h3>Available files</h3></div>
+          <div><p class="eyebrow">ACTIVE DROPS</p><h3>Available until they expire</h3></div>
           <div class="library-actions">
-            <label class="search-box">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.3-4.3m2.3-5.2a7.5 7.5 0 1 1-15 0 7.5 7.5 0 0 1 15 0Z"></path></svg>
-              <input id="searchInput" type="search" placeholder="Filter files" autocomplete="off">
-            </label>
             <button id="refreshButton" class="icon-button" type="button" title="Refresh" aria-label="Refresh files">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6v5h-5M4 18v-5h5M6.1 9A7 7 0 0 1 18 6.5L20 11M4 13l2 4.5A7 7 0 0 0 17.9 15"></path></svg>
             </button>
           </div>
         </div>
-        <div class="manager-hint"><strong>Lifecycle controls</strong><span>Passwords are fixed at upload. Any connected client may edit only the auto-delete countdown; protected downloads and deletion still require the password.</span></div>
+        <p class="active-drops-note">Trusted mode keeps every active Drop available here with a reusable access link, QR code, and direct download.</p>
         <div id="fileList" class="file-list"></div>
         <div id="emptyState" class="empty-state">
-          <div class="empty-icon">∅</div><h4>No files available</h4><p>Upload something to make it visible to every device on this network.</p>
+          <div class="empty-icon">+</div><h4>No active Drops</h4><p>Create one above. It will remain available through its private link until expiration.</p>
         </div>
+      </section>
+      <section id="activeDropsUnavailable" class="panel policy-panel hidden">
+        <p class="eyebrow">DEPLOYMENT POLICY</p>
+        <h3>Active Drops are hidden</h3>
+        <p>This profile exposes no directory. Create a Drop above and keep its generated access link.</p>
       </section>
     </section>
 
@@ -230,7 +237,7 @@
       </div>
     </section>
 
-    <footer><span>Serving <strong id="serverDirectory">./files</strong></span><span>NightWire <strong id="versionText">1.0.2</strong></span></footer>
+    <footer><span>Private access lasts only until each Drop expires.</span><span>NightWire <strong id="versionText">1.0.2</strong></span></footer>
   </main>
 
   <div id="settingsModal" class="modal-backdrop hidden" role="presentation">
@@ -251,7 +258,7 @@
             <option value="3600">1 hour from now</option>
             <option value="21600">6 hours from now</option>
             <option value="86400">24 hours from now</option>
-            <option value="0">Unlimited / never</option>
+            <option id="settingsUnlimitedOption" value="0">Unlimited / never</option>
             <option value="custom">Custom duration…</option>
           </select>
           <label id="settingsCustomExpiryWrap" class="custom-duration hidden">
@@ -273,6 +280,15 @@
         <label class="form-field"><span>Password</span><input id="passwordInput" type="password" maxlength="256" autocomplete="current-password" required></label>
         <div class="modal-actions"><button id="cancelPasswordButton" class="secondary-button" type="button">Cancel</button><button id="submitPasswordButton" class="primary-button" type="submit">Continue</button></div>
       </form>
+    </section>
+  </div>
+
+  <div id="shareModal" class="modal-backdrop hidden" role="presentation">
+    <section class="modal-card password-card" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+      <div class="modal-heading"><div><p class="eyebrow">DROP READY</p><h3 id="shareTitle">Share this private link</h3><p>The Access Key appears only in this URL. Anyone with the complete link can access the Drop until it expires.</p></div><button id="closeShareButton" class="modal-close" type="button" aria-label="Close share link">×</button></div>
+      <label class="form-field"><span>Complete share URL</span><input id="shareUrlInput" type="url" readonly></label>
+      <div class="share-link-qr"><img id="shareQrImage" alt="QR code containing the complete Drop share URL"><p>Scan to open this exact share URL, including its Access Key.</p></div>
+      <div class="modal-actions"><button id="dismissShareButton" class="secondary-button" type="button">Done</button><button id="copyShareButton" class="primary-button" type="button">Copy share link</button></div>
     </section>
   </div>
 

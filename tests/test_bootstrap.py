@@ -15,6 +15,11 @@ class BootstrapRouteParityTests(unittest.TestCase):
             ("/files", {"GET", "HEAD"}),
             ("/clipboard", {"GET", "HEAD"}),
             ("/clients", {"GET", "HEAD"}),
+            ("/drop/{filename:str}", {"GET", "HEAD"}),
+            ("/api/drops", {"GET", "HEAD"}),
+            ("/api/drops/files", {"PUT"}),
+            ("/api/drops/text", {"POST"}),
+            ("/api/drops/{filename:str}", {"GET", "HEAD"}),
             ("/api/files", {"GET", "HEAD"}),
             ("/api/info", {"GET", "HEAD"}),
             ("/api/devices", {"GET", "HEAD"}),
@@ -32,6 +37,111 @@ class BootstrapRouteParityTests(unittest.TestCase):
             ("/api/files/{filename:str}/download", {"POST"}),
             ("/download/{filename:str}", {"GET", "HEAD"}),
             ("/static", None),
+            ("/library", {"GET", "HEAD"}),
+            ("/library/files/{file_id:str}", {"GET", "HEAD"}),
+            ("/library/texts/{text_id:str}", {"GET", "HEAD"}),
+            ("/workspaces", {"GET", "HEAD"}),
+            ("/workspaces/{workspace_id:str}/files/{file_id:str}", {"GET", "HEAD"}),
+            ("/workspaces/{workspace_id:str}/texts/{text_id:str}", {"GET", "HEAD"}),
+            ("/library/trash", {"GET", "HEAD"}),
+            ("/library/shares", {"GET", "HEAD"}),
+            ("/workspaces/trash", {"GET", "HEAD"}),
+            ("/library/login", {"GET", "HEAD"}),
+            ("/library/signup", {"GET", "HEAD"}),
+            ("/library/assets/auth.js", {"GET", "HEAD"}),
+            ("/library/assets/auth.css", {"GET", "HEAD"}),
+            ("/library/assets/browser.js", {"GET", "HEAD"}),
+            ("/library/assets/browser.css", {"GET", "HEAD"}),
+            ("/library/assets/text-ui.js", {"GET", "HEAD"}),
+            ("/library/assets/text-editor.js", {"GET", "HEAD"}),
+            ("/library/assets/text-editor.css", {"GET", "HEAD"}),
+            ("/library/assets/file-detail.js", {"GET", "HEAD"}),
+            ("/library/assets/file-detail.css", {"GET", "HEAD"}),
+            ("/library/assets/trash.js", {"GET", "HEAD"}),
+            ("/library/assets/shares.js", {"GET", "HEAD"}),
+            ("/library/assets/share-recipient.js", {"GET", "HEAD"}),
+            ("/library/assets/shell.css", {"GET", "HEAD"}),
+            ("/api/library", {"GET", "HEAD"}),
+            ("/api/library/usage", {"GET", "HEAD"}),
+            ("/api/library/search", {"GET", "HEAD"}),
+            ("/api/library/folders", {"GET", "HEAD", "POST"}),
+            ("/api/library/tree", {"GET", "HEAD"}),
+            ("/api/library/folders/{folder_id:str}", {"GET", "HEAD", "PATCH", "DELETE"}),
+            ("/api/library/folders/{folder_id:str}/upload", {"PUT"}),
+            ("/api/library/folders/{folder_id:str}/texts", {"POST"}),
+            ("/api/library/folders/{folder_id:str}/copy", {"POST"}),
+            ("/api/library/folders/{folder_id:str}/duplicate", {"POST"}),
+            ("/api/library/files/{file_id:str}", {"GET", "HEAD", "PATCH", "DELETE"}),
+            ("/api/library/files/{file_id:str}/preview", {"GET", "HEAD"}),
+            ("/api/library/files/{file_id:str}/download", {"GET", "HEAD"}),
+            ("/api/library/files/{file_id:str}/versions", {"GET", "HEAD", "PUT"}),
+            ("/api/library/files/{file_id:str}/versions/{version_id:str}/download", {"GET", "HEAD"}),
+            ("/api/library/files/{file_id:str}/versions/{version_id:str}/restore", {"POST"}),
+            ("/api/library/files/{file_id:str}/derived-outputs", {"GET", "HEAD", "PUT"}),
+            ("/api/library/files/{file_id:str}/derived-outputs/{derived_id:str}/promote", {"POST"}),
+            ("/api/library/files/{file_id:str}/shares", {"GET", "HEAD", "POST"}),
+            ("/api/library/files/{file_id:str}/copy", {"POST"}),
+            ("/api/library/files/{file_id:str}/duplicate", {"POST"}),
+            ("/api/library/texts", {"POST"}),
+            ("/api/library/texts/{text_id:str}", {"GET", "HEAD", "PATCH", "DELETE"}),
+            ("/api/library/texts/{text_id:str}/shares", {"GET", "HEAD", "POST"}),
+            ("/api/library/trash", {"GET", "HEAD"}),
+            ("/api/library/trash/files/{file_id:str}/restore", {"POST"}),
+            ("/api/library/trash/files/{file_id:str}", {"DELETE"}),
+            ("/api/library/trash/folders/{folder_id:str}/restore", {"POST"}),
+            ("/api/library/trash/folders/{folder_id:str}", {"DELETE"}),
+            ("/api/library/trash/texts/{text_id:str}/restore", {"POST"}),
+            ("/api/library/trash/texts/{text_id:str}", {"DELETE"}),
+            ("/api/library/shares", {"GET", "HEAD"}),
+            ("/api/library/shares/{share_id:str}", {"DELETE"}),
+            ("/api/workspaces", {"GET", "HEAD", "POST"}),
+            ("/api/workspaces/{workspace_id:str}", {"GET", "HEAD"}),
+            ("/api/workspaces/{workspace_id:str}/usage", {"GET", "HEAD"}),
+            ("/api/workspaces/{workspace_id:str}/members", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/members/me", {"DELETE"}),
+            ("/api/workspaces/{workspace_id:str}/members/{member_id:str}", {"DELETE"}),
+            ("/api/workspaces/{workspace_id:str}/folders", {"GET", "HEAD", "POST"}),
+            ("/api/workspaces/{workspace_id:str}/tree", {"GET", "HEAD"}),
+            ("/api/workspaces/{workspace_id:str}/folders/{folder_id:str}", {"GET", "HEAD", "PATCH", "DELETE"}),
+            ("/api/workspaces/{workspace_id:str}/folders/{folder_id:str}/upload", {"PUT"}),
+            ("/api/workspaces/{workspace_id:str}/folders/{folder_id:str}/texts", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/folders/{folder_id:str}/copy", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/folders/{folder_id:str}/duplicate", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}", {"GET", "HEAD", "PATCH", "DELETE"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}/preview", {"GET", "HEAD"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}/download", {"GET", "HEAD"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}/versions", {"GET", "HEAD", "PUT"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}/versions/{version_id:str}/download", {"GET", "HEAD"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}/versions/{version_id:str}/restore", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}/derived-outputs", {"GET", "HEAD", "PUT"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}/derived-outputs/{derived_id:str}/promote", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}/shares", {"GET", "HEAD", "POST"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}/copy", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/files/{file_id:str}/duplicate", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/texts", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/texts/{text_id:str}", {"GET", "HEAD", "PATCH", "DELETE"}),
+            ("/api/workspaces/{workspace_id:str}/texts/{text_id:str}/shares", {"GET", "HEAD", "POST"}),
+            ("/api/workspaces/{workspace_id:str}/trash", {"GET", "HEAD"}),
+            ("/api/workspaces/{workspace_id:str}/trash/files/{file_id:str}/restore", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/trash/files/{file_id:str}", {"DELETE"}),
+            ("/api/workspaces/{workspace_id:str}/trash/folders/{folder_id:str}/restore", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/trash/folders/{folder_id:str}", {"DELETE"}),
+            ("/api/workspaces/{workspace_id:str}/trash/texts/{text_id:str}/restore", {"POST"}),
+            ("/api/workspaces/{workspace_id:str}/trash/texts/{text_id:str}", {"DELETE"}),
+            ("/api/library/auth/config", {"GET", "HEAD"}),
+            ("/api/library/auth/register", {"POST"}),
+            ("/api/library/auth/login", {"POST"}),
+            ("/api/library/auth/logout", {"POST"}),
+            ("/api/library/auth/me", {"GET", "HEAD"}),
+            ("/api/library/admin/invitations", {"POST"}),
+            ("/api/library/admin/pending-users", {"GET", "HEAD"}),
+            ("/api/library/admin/pending-users/{user_id:str}/approve", {"POST"}),
+            ("/api/library/admin/pending-users/{user_id:str}/reject", {"POST"}),
+            ("/s/{share_token:str}", {"GET", "HEAD"}),
+            ("/api/public/shares/{share_token:str}", {"GET", "HEAD"}),
+            ("/api/public/shares/{share_token:str}/preview", {"GET", "HEAD"}),
+            ("/api/public/shares/{share_token:str}/download", {"GET", "HEAD"}),
+            ("/api/public/shares/{share_token:str}/qr", {"GET", "HEAD"}),
         ]
         actual = [
             (route.path, set(route.methods) if hasattr(route, "methods") else None)
@@ -42,8 +152,13 @@ class BootstrapRouteParityTests(unittest.TestCase):
         self.assertEqual(app.app.state.registered_modules, ("drop", "library"))
 
     def test_drop_owns_existing_lifecycle_hooks(self):
-        self.assertEqual(app.app.state.startup_hooks, (app.start_cleanup_worker,))
-        self.assertEqual(app.app.state.shutdown_hooks, (app.stop_cleanup_worker,))
+        self.assertIs(app.app.state.startup_hooks[0], app.start_cleanup_worker)
+        self.assertEqual(app.app.state.startup_hooks[1], app.app.state.library_database.migrate)
+        self.assertEqual(app.app.state.startup_hooks[2], app.app.state.library_trash.start_cleanup)
+        self.assertEqual(
+            app.app.state.shutdown_hooks,
+            (app.stop_cleanup_worker, app.app.state.library_trash.stop_cleanup),
+        )
 
     def test_security_middleware_is_applied_by_bootstrap(self):
         middleware_classes = [item.cls.__name__ for item in app.app.user_middleware]
@@ -65,9 +180,13 @@ class ConditionalBuiltInModuleTests(unittest.TestCase):
         )
 
         self.assertEqual(application.state.registered_modules, ("library",))
-        self.assertEqual(application.routes, [])
-        self.assertEqual(application.state.startup_hooks, ())
-        self.assertEqual(application.state.shutdown_hooks, ())
+        self.assertEqual(application.routes[0].path, "/library")
+        self.assertEqual(application.routes[-1].path, "/api/public/shares/{share_token:str}/qr")
+        self.assertEqual(
+            application.state.startup_hooks,
+            (application.state.library_database.migrate, application.state.library_trash.start_cleanup),
+        )
+        self.assertEqual(application.state.shutdown_hooks, (application.state.library_trash.stop_cleanup,))
 
     def test_disabled_library_leaves_drop_route_surface_unchanged(self):
         application = build_application(
@@ -79,7 +198,7 @@ class ConditionalBuiltInModuleTests(unittest.TestCase):
         self.assertEqual(application.state.registered_modules, ("drop",))
         self.assertEqual(
             [(route.path, getattr(route, "methods", None)) for route in application.routes],
-            [(route.path, getattr(route, "methods", None)) for route in app.app.routes],
+            [(route.path, getattr(route, "methods", None)) for route in app.app.routes[:26]],
         )
         self.assertEqual(application.state.startup_hooks, (app.start_cleanup_worker,))
         self.assertEqual(application.state.shutdown_hooks, (app.stop_cleanup_worker,))

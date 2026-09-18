@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08101c"><meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'self'; base-uri 'none'; form-action 'self'">
+  <title>NightWire File</title>
+  <link rel="stylesheet" href="/library/assets/shell.css?v=1.0.2">
+  <link rel="stylesheet" href="/library/assets/file-detail.css?v=1.0.2">
+</head>
+<body class="file-detail-body">
+  <main class="file-detail-shell">
+    <header class="file-detail-header">
+      <a id="backLink" href="/library">← My Library</a>
+      <div><p id="kindLabel" class="eyebrow">FILE</p><h1 id="fileName">Loading…</h1><p id="fileSummary">Inspecting stored content.</p></div>
+      <a id="downloadButton" class="primary-button" href="#">Download</a>
+    </header>
+    <p id="detailNotice" class="detail-notice" role="status" hidden></p>
+    <div class="file-detail-layout">
+      <nav id="detailNav" class="detail-nav" aria-label="File detail sections">
+        <button class="active" type="button" data-section="preview">Preview</button>
+        <button type="button" data-section="properties">Properties</button>
+        <button type="button" data-section="security">Security</button>
+        <button type="button" data-section="versions">Versions</button>
+        <button type="button" data-section="derived">Derived Outputs</button>
+        <button type="button" data-section="toolkit">Toolkit</button>
+        <button type="button" data-section="sharing">Sharing</button>
+      </nav>
+      <div class="detail-content">
+        <section id="previewSection" class="detail-section active" data-panel="preview"><header><p class="eyebrow">SAFE VIEW</p><h2>Preview</h2></header><div id="previewSurface" class="preview-surface"><p>Preparing preview…</p></div></section>
+        <section id="propertiesSection" class="detail-section" data-panel="properties"><header><p class="eyebrow">STORED FACTS</p><h2>Properties</h2></header><dl id="propertiesList" class="property-grid"></dl></section>
+        <section id="securitySection" class="detail-section" data-panel="security"><header><p class="eyebrow">TRUST STATE</p><h2>Security</h2></header><div id="securityCard" class="security-detail"></div></section>
+        <section id="versionsSection" class="detail-section" data-panel="versions"><header class="section-actions"><div><p class="eyebrow">HISTORY</p><h2>Versions</h2></div><label class="secondary-button version-upload">Add version<input id="versionInput" type="file"></label></header><div id="versionList" class="detail-list"></div></section>
+        <section id="derivedSection" class="detail-section" data-panel="derived"><header><p class="eyebrow">PROVENANCE</p><h2>Derived Outputs</h2></header><div id="derivedList" class="detail-list"></div></section>
+        <section id="toolkitSection" class="detail-section" data-panel="toolkit"><header><p class="eyebrow">COMMUNITY ACTIONS</p><h2>Toolkit</h2></header><p class="section-intro">General file management only. Format-specific transformations are not installed in Community.</p><div id="toolkitActions" class="toolkit-actions"></div></section>
+        <section id="sharingSection" class="detail-section" data-panel="sharing"><header><p class="eyebrow">READ-ONLY ACCESS</p><h2>Sharing</h2></header><form id="shareForm" class="share-inline-form"><label>Expiry<select name="expires_in_seconds"><option value="0">No expiry</option><option value="3600">1 hour</option><option value="86400">1 day</option><option value="604800">7 days</option><option value="2592000">30 days</option></select></label><label class="checkbox-label"><input name="access_key_protected" type="checkbox"> Require reusable Access Key</label><button class="primary-button" type="submit">Create share</button></form><div id="shareList" class="detail-list"></div></section>
+      </div>
+    </div>
+  </main>
+  <script type="module" src="/library/assets/file-detail.js?v=1.0.2"></script>
+</body>
+</html>

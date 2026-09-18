@@ -20,7 +20,40 @@ const state = {
   settingsTarget: null,
   passwordAction: null,
   expiryReloadPending: false,
+  dropCredentials: {},
+  voiceRecorder: null,
+  voiceStream: null,
+  voiceChunks: [],
+  voiceAudioContext: null,
+  voiceAnalyser: null,
+  voiceAnimationFrame: null,
+  voiceStartedAt: 0,
 };
+
+function credentialFor(file) {
+  const credential = state.dropCredentials[file.name];
+  if (!credential || credential.created_at !== file.created_at) return null;
+  return credential;
+}
+
+function rememberDropCredential(file, accessKey, shareUrl) {
+  const durableShareUrl = file.access_key_required
+    ? shareUrl
+    : (() => {
+        const parsed = new URL(shareUrl, window.location.href);
+        return `${parsed.origin}${parsed.pathname}`;
+      })();
+  state.dropCredentials[file.name] = {
+    access_key: file.access_key_required ? accessKey : "",
+    share_url: durableShareUrl,
+    created_at: file.created_at,
+  };
+}
+
+function withLocalCredential(file) {
+  const credential = credentialFor(file);
+  return credential ? { ...file, ...credential } : file;
+}
 
 const elements = {
   statusText: document.querySelector("#statusText"),
@@ -32,7 +65,6 @@ const elements = {
   networkAlternates: document.querySelector("#networkAlternates"),
   copyAddressButton: document.querySelector("#copyAddressButton"),
   fileInput: document.querySelector("#fileInput"),
-  browseButton: document.querySelector("#browseButton"),
   dropzone: document.querySelector("#dropzone"),
   fileExpiryPreset: document.querySelector("#fileExpiryPreset"),
   fileCustomExpiryWrap: document.querySelector("#fileCustomExpiryWrap"),
@@ -40,6 +72,24 @@ const elements = {
   filePassword: document.querySelector("#filePassword"),
   filePasswordConfirmWrap: document.querySelector("#filePasswordConfirmWrap"),
   filePasswordConfirm: document.querySelector("#filePasswordConfirm"),
+  dropTextInput: document.querySelector("#dropTextInput"),
+  dropTextTitle: document.querySelector("#dropTextTitle"),
+  dropTextMode: document.querySelector("#dropTextMode"),
+  dropTextLanguageWrap: document.querySelector("#dropTextLanguageWrap"),
+  dropTextLanguage: document.querySelector("#dropTextLanguage"),
+  dropTextCharacterCount: document.querySelector("#dropTextCharacterCount"),
+  shareTextDropButton: document.querySelector("#shareTextDropButton"),
+  quickDropExpiryPreset: document.querySelector("#fileExpiryPreset"),
+  quickDropCustomExpiryWrap: document.querySelector("#fileCustomExpiryWrap"),
+  quickDropCustomExpiry: document.querySelector("#fileCustomExpiry"),
+  recordVoiceButton: document.querySelector("#recordVoiceButton"),
+  stopVoiceButton: document.querySelector("#stopVoiceButton"),
+  voiceStatus: document.querySelector("#voiceStatus"),
+  voiceCaptureInput: document.querySelector("#voiceCaptureInput"),
+  voiceVisualizer: document.querySelector("#voiceVisualizer"),
+  voiceElapsed: document.querySelector("#voiceElapsed"),
+  activeDropsPanel: document.querySelector("#activeDropsPanel"),
+  activeDropsUnavailable: document.querySelector("#activeDropsUnavailable"),
   fileCount: document.querySelector("#fileCount"),
   storageFree: document.querySelector("#storageFree"),
   protectedFileCount: document.querySelector("#protectedFileCount"),
@@ -88,12 +138,19 @@ const elements = {
   settingsCustomExpiryWrap: document.querySelector("#settingsCustomExpiryWrap"),
   settingsCustomExpiry: document.querySelector("#settingsCustomExpiry"),
   settingsExpiryStatus: document.querySelector("#settingsExpiryStatus"),
+  settingsUnlimitedOption: document.querySelector("#settingsUnlimitedOption"),
   passwordModal: document.querySelector("#passwordModal"),
   passwordForm: document.querySelector("#passwordForm"),
   passwordTitle: document.querySelector("#passwordTitle"),
   passwordSubtitle: document.querySelector("#passwordSubtitle"),
   passwordInput: document.querySelector("#passwordInput"),
   submitPasswordButton: document.querySelector("#submitPasswordButton"),
+  shareModal: document.querySelector("#shareModal"),
+  shareUrlInput: document.querySelector("#shareUrlInput"),
+  closeShareButton: document.querySelector("#closeShareButton"),
+  dismissShareButton: document.querySelector("#dismissShareButton"),
+  copyShareButton: document.querySelector("#copyShareButton"),
+  shareQrImage: document.querySelector("#shareQrImage"),
   closePasswordButton: document.querySelector("#closePasswordButton"),
   cancelPasswordButton: document.querySelector("#cancelPasswordButton"),
   toastRegion: document.querySelector("#toastRegion"),
@@ -220,7 +277,7 @@ function setRoute(route, push = false) {
     else item.removeAttribute("aria-current");
   }
   for (const page of elements.pageViews) page.hidden = page.dataset.page !== resolved;
-  const labels = { files: "Files", clipboard: "Clipboard", clients: "Clients" };
+  const labels = { files: "Secure Drop", clipboard: "Clipboard", clients: "Clients" };
   document.title = `NightWire — ${labels[resolved]}`;
   if (push && window.location.pathname !== `/${resolved}`) history.pushState({ route: resolved }, "", `/${resolved}`);
   window.scrollTo(0, 0);
@@ -232,17 +289,26 @@ function setRoute(route, push = false) {
 async function loadInfo() {
   const info = await api("/api/info");
   state.info = info;
+  const dropMaximum = info.drop_max_expiry_seconds || 365 * 86400;
+  elements.fileCustomExpiry.max = String(Math.floor(dropMaximum / 60));
+  for (const select of new Set([elements.fileExpiryPreset, elements.quickDropExpiryPreset])) {
+    for (const option of select.options) {
+      const seconds = Number.parseInt(option.value, 10);
+      const unavailable = Number.isFinite(seconds) && seconds > dropMaximum;
+      option.hidden = unavailable;
+      option.disabled = unavailable;
+    }
+  }
   const base = info.primary_network_url;
   const primary = `${base}/files`;
   elements.networkAddress.textContent = primary;
   elements.networkAddress.title = primary;
   elements.qrAddress.textContent = primary;
-  elements.serverDirectory.textContent = info.directory;
+  if (elements.serverDirectory) elements.serverDirectory.textContent = info.directory;
   elements.versionText.textContent = info.version;
   elements.clipboardInput.maxLength = info.clipboard_max_text_length || 32768;
   const maximumMinutes = String(Math.floor((info.item_max_expiry_seconds || 365 * 86400) / 60));
   elements.settingsCustomExpiry.max = maximumMinutes;
-  elements.fileCustomExpiry.max = maximumMinutes;
   elements.clipboardCustomExpiry.max = maximumMinutes;
   updateClipboardCharacterCount();
 
@@ -260,12 +326,28 @@ async function loadInfo() {
 }
 
 async function loadFiles({ quiet = true } = {}) {
+  if (!state.info?.active_drop_browsing) {
+    state.files = [];
+    elements.activeDropsPanel.classList.add("hidden");
+    elements.activeDropsUnavailable.classList.remove("hidden");
+    if (elements.fileCount) elements.fileCount.textContent = "—";
+    if (elements.protectedFileCount) elements.protectedFileCount.textContent = "—";
+    return;
+  }
+  elements.activeDropsPanel.classList.remove("hidden");
+  elements.activeDropsUnavailable.classList.add("hidden");
   try {
-    const data = await api("/api/files");
-    state.files = data.files || [];
-    elements.fileCount.textContent = String(state.files.length);
-    elements.protectedFileCount.textContent = String(state.files.filter((file) => file.password_protected).length);
-    elements.storageFree.textContent = formatBytes(data.storage?.free);
+    const data = await api("/api/drops");
+    state.files = (data.drops || []).map(withLocalCredential);
+    const activeNames = new Set(state.files.map((file) => file.name));
+    for (const name of Object.keys(state.dropCredentials)) {
+      if (!activeNames.has(name)) delete state.dropCredentials[name];
+    }
+    if (elements.fileCount) elements.fileCount.textContent = String(state.files.length);
+    if (elements.protectedFileCount) elements.protectedFileCount.textContent = String(state.files.filter((file) => file.password_protected).length);
+    if (elements.storageFree) elements.storageFree.textContent = data.usage?.limit_bytes
+      ? `${formatBytes(data.usage.available_bytes)} quota available`
+      : `${formatBytes(data.storage?.free)} host free`;
     if (state.currentRoute === "files") renderFiles();
     setServerOnline(true);
   } catch (error) {
@@ -282,14 +364,27 @@ function createStatusBadge(label, kind = "") {
   return badge;
 }
 
+const securityStates = {
+  clean: { label: "Security: clean", kind: "security-clean" },
+  suspicious: { label: "Warning: suspicious", kind: "security-warning" },
+  malicious: { label: "Danger: malicious", kind: "security-danger" },
+  scan_failed: { label: "Warning: scan failed", kind: "security-warning" },
+  unscanned: { label: "Warning: unscanned", kind: "security-warning" },
+};
+
+function securityState(file) {
+  const verdict = file.security?.verdict || file.security_verdict || "unscanned";
+  return { verdict, ...(securityStates[verdict] || securityStates.unscanned) };
+}
+
 function renderFiles() {
-  const term = elements.searchInput.value.trim().toLowerCase();
+  const term = elements.searchInput?.value.trim().toLowerCase() || "";
   const files = state.files.filter((file) => file.name.toLowerCase().includes(term));
   elements.fileList.replaceChildren();
   elements.emptyState.classList.toggle("hidden", files.length > 0);
   if (!files.length) {
-    elements.emptyState.querySelector("h4").textContent = term ? "No matching files" : "No files available";
-    elements.emptyState.querySelector("p").textContent = term ? "Try another filter." : "Upload something to make it visible to every device on this network.";
+    elements.emptyState.querySelector("h4").textContent = term ? "No matching Drops" : "No active Drops";
+    elements.emptyState.querySelector("p").textContent = term ? "Try another filter." : "Create one above. It will remain available through its private link until expiration.";
     return;
   }
 
@@ -316,7 +411,8 @@ function renderFiles() {
     const statuses = document.createElement("div");
     statuses.className = "item-status-line";
     if (file.password_protected) statuses.append(createStatusBadge("Password protected", "locked"));
-    else statuses.append(createStatusBadge("No password"));
+    const security = securityState(file);
+    statuses.append(createStatusBadge(security.label, security.kind));
     const expiry = createStatusBadge(formatCountdown(file.expires_at), file.expires_at ? "expiring" : "unlimited");
     expiry.dataset.expiresAt = file.expires_at || "";
     expiry.dataset.itemKind = "file";
@@ -325,13 +421,21 @@ function renderFiles() {
 
     const actions = document.createElement("div");
     actions.className = "file-actions";
-    const download = actionButton(file.password_protected ? "Unlock & download" : "Download", "primary-action");
-    download.addEventListener("click", () => downloadFile(file));
-    const manage = actionButton("Edit countdown");
-    manage.addEventListener("click", () => openSettings("file", file));
+    const download = actionButton(
+      security.verdict === "malicious"
+        ? "Hold to download"
+        : (file.password_protected ? "Unlock & download" : "Download"),
+      security.verdict === "malicious" ? "danger-action" : "primary-action",
+    );
+    if (security.verdict === "malicious") armHoldToConfirm(download, () => downloadFile(file, true));
+    else download.addEventListener("click", () => downloadFile(file));
+    const shareUrl = credentialFor(file)?.share_url || file.share_url;
+    const share = actionButton(shareUrl ? "Access link & QR" : "Access link unavailable");
+    share.disabled = !shareUrl;
+    if (shareUrl) share.addEventListener("click", () => showShareUrl(shareUrl));
     const remove = actionButton("Delete", "danger-action");
     remove.addEventListener("click", () => deleteFile(file));
-    actions.append(download, manage, remove);
+    actions.append(download, share, remove);
     row.append(icon, meta, actions);
     elements.fileList.append(row);
   }
@@ -345,6 +449,57 @@ function actionButton(label, className = "") {
   return button;
 }
 
+function armHoldToConfirm(button, confirmedAction) {
+  const holdMilliseconds = 1800;
+  const idleLabel = button.textContent;
+  let timer = null;
+  let startedAt = 0;
+  let animation = null;
+  let confirmed = false;
+
+  const reset = () => {
+    if (timer) clearTimeout(timer);
+    if (animation) cancelAnimationFrame(animation);
+    timer = null;
+    animation = null;
+    startedAt = 0;
+    button.textContent = idleLabel;
+    button.classList.remove("hold-confirming");
+  };
+  const update = () => {
+    if (!startedAt) return;
+    const percent = Math.min(100, Math.round(((performance.now() - startedAt) / holdMilliseconds) * 100));
+    button.textContent = `Keep holding… ${percent}%`;
+    if (percent < 100) animation = requestAnimationFrame(update);
+  };
+  const begin = (event) => {
+    if (button.disabled || timer) return;
+    event.preventDefault();
+    confirmed = false;
+    startedAt = performance.now();
+    button.classList.add("hold-confirming");
+    toast("Keep holding to deliberately download this malicious Drop.", "error");
+    update();
+    timer = setTimeout(() => {
+      timer = null;
+      confirmed = true;
+      reset();
+      confirmedAction();
+    }, holdMilliseconds);
+  };
+  const cancel = (event) => {
+    if (confirmed) return;
+    event.preventDefault();
+    if (timer) reset();
+  };
+
+  button.addEventListener("click", (event) => event.preventDefault());
+  button.addEventListener("pointerdown", begin);
+  for (const eventName of ["pointerup", "pointercancel", "pointerleave"]) button.addEventListener(eventName, cancel);
+  button.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) begin(event); });
+  button.addEventListener("keyup", (event) => { if (["Enter", " "].includes(event.key)) cancel(event); });
+}
+
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -356,12 +511,15 @@ function triggerDownload(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-async function downloadProtectedFile(file, password) {
-  const response = await fetch(`/api/files/${encodeURIComponent(file.name)}/download`, {
+async function downloadProtectedFile(file, password, confirmedMalicious = false) {
+  const credential = credentialFor(file);
+  if (file.access_key_required && !credential) throw new Error("This browser no longer has the Drop Access Key. Open the complete share URL instead.");
+  const keyQuery = file.access_key_required && credential ? `?key=${encodeURIComponent(credential.access_key)}` : "";
+  const response = await fetch(`/api/files/${encodeURIComponent(file.name)}/download${keyQuery}`, {
     method: "POST",
     cache: "no-store",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password }),
+    body: JSON.stringify({ password, confirm_malicious: confirmedMalicious }),
   });
   if (!response.ok) {
     let message = `Download failed (${response.status})`;
@@ -372,17 +530,30 @@ async function downloadProtectedFile(file, password) {
   toast("Download started.", "success");
 }
 
-function downloadFile(file) {
+function downloadFile(file, confirmedMalicious = false) {
+  const credential = credentialFor(file);
+  if (file.access_key_required && !credential) {
+    toast("This browser no longer has the Drop Access Key. Open the complete share URL instead.", "error");
+    return;
+  }
+  if (securityState(file).verdict === "malicious" && !confirmedMalicious) {
+    toast("Hold the download button to deliberately confirm this malicious download.", "error");
+    return;
+  }
   if (!file.password_protected) {
+    const query = new URLSearchParams();
+    if (file.access_key_required && credential) query.set("key", credential.access_key);
+    if (confirmedMalicious) query.set("confirm_malicious", "true");
+    const queryString = query.toString();
     const anchor = document.createElement("a");
-    anchor.href = file.download_url;
+    anchor.href = `/download/${encodeURIComponent(file.name)}${queryString ? `?${queryString}` : ""}`;
     anchor.download = file.name;
     document.body.append(anchor);
     anchor.click();
     anchor.remove();
     return;
   }
-  askPassword("Unlock file", file.name, "Download", (password) => downloadProtectedFile(file, password));
+  askPassword("Unlock file", file.name, "Download", (password) => downloadProtectedFile(file, password, confirmedMalicious));
 }
 
 async function performDeleteFile(file, password = undefined) {
@@ -392,9 +563,10 @@ async function performDeleteFile(file, password = undefined) {
     body: JSON.stringify(password === undefined ? {} : { password }),
   });
   state.files = state.files.filter((item) => item.name !== file.name);
+  delete state.dropCredentials[file.name];
   renderFiles();
-  elements.fileCount.textContent = String(state.files.length);
-  elements.protectedFileCount.textContent = String(state.files.filter((item) => item.password_protected).length);
+  if (elements.fileCount) elements.fileCount.textContent = String(state.files.length);
+  if (elements.protectedFileCount) elements.protectedFileCount.textContent = String(state.files.filter((item) => item.password_protected).length);
   toast("File deleted.", "success");
 }
 
@@ -410,11 +582,11 @@ function deleteFile(file) {
   });
 }
 
-function selectedExpirySeconds(select, customInput, label) {
+function selectedExpirySeconds(select, customInput, label, maximumSeconds = state.info?.item_max_expiry_seconds || 365 * 86400) {
   const value = select.value;
   if (value !== "custom") return Number.parseInt(value, 10);
   const minutes = Number(customInput.value);
-  const maximum = Math.floor((state.info?.item_max_expiry_seconds || 365 * 86400) / 60);
+  const maximum = Math.floor(maximumSeconds / 60);
   if (!Number.isFinite(minutes) || minutes < 1 || minutes > maximum) {
     throw new Error(`${label} countdown must be between 1 and ${maximum.toLocaleString()} minutes.`);
   }
@@ -438,14 +610,25 @@ function utf8ToBase64(value) {
 function updateCreationFields() {
   elements.fileCustomExpiryWrap.classList.toggle("hidden", elements.fileExpiryPreset.value !== "custom");
   elements.clipboardCustomExpiryWrap.classList.toggle("hidden", elements.clipboardExpiryPreset.value !== "custom");
-  elements.filePasswordConfirmWrap.classList.toggle("hidden", !elements.filePassword.value);
+  if (elements.filePasswordConfirmWrap && elements.filePassword) {
+    elements.filePasswordConfirmWrap.classList.toggle("hidden", !elements.filePassword.value);
+  }
   elements.clipboardPasswordConfirmWrap.classList.toggle("hidden", !elements.clipboardPassword.value);
+}
+
+function quickDropExpirySeconds() {
+  return selectedExpirySeconds(
+    elements.quickDropExpiryPreset,
+    elements.quickDropCustomExpiry,
+    "Drop",
+    state.info?.drop_max_expiry_seconds || 365 * 86400,
+  );
 }
 
 function fileUploadSettings() {
   return {
-    expiresInSeconds: selectedExpirySeconds(elements.fileExpiryPreset, elements.fileCustomExpiry, "File"),
-    password: selectedCreationPassword(elements.filePassword, elements.filePasswordConfirm, "File"),
+    expiresInSeconds: selectedExpirySeconds(elements.fileExpiryPreset, elements.fileCustomExpiry, "Drop", state.info?.drop_max_expiry_seconds || 365 * 86400),
+    password: "",
   };
 }
 
@@ -457,8 +640,10 @@ function clipboardShareSettings() {
 }
 
 function queueFiles(fileList) {
-  const files = [...fileList];
+  const candidates = [...fileList];
+  const files = candidates.slice(0, 1);
   if (!files.length) return;
+  if (candidates.length > 1) toast("Create one Drop at a time; only the first file was selected.", "error");
   let settings;
   try { settings = fileUploadSettings(); } catch (error) { toast(error.message, "error"); elements.fileInput.value = ""; return; }
   files.forEach((file) => uploadFile(file, settings));
@@ -496,7 +681,7 @@ function uploadFile(file, settings) {
   state.uploads.set(id, { xhr, row });
   updateQueueSummary();
   cancel.addEventListener("click", () => xhr.abort());
-  xhr.open("PUT", `/api/upload?filename=${encodeURIComponent(file.name)}`);
+  xhr.open("PUT", `/api/drops/files?filename=${encodeURIComponent(file.name)}`);
   xhr.setRequestHeader("X-NightWire-Expires-In-Seconds", String(settings.expiresInSeconds));
   if (settings.password) xhr.setRequestHeader("X-NightWire-Password-B64", utf8ToBase64(settings.password));
   xhr.responseType = "json";
@@ -512,11 +697,14 @@ function uploadFile(file, settings) {
       status.textContent = "Complete";
       const uploaded = xhr.response?.file;
       if (uploaded) {
-        state.files = [uploaded, ...state.files.filter((item) => item.name !== uploaded.name)];
+        rememberDropCredential(uploaded, xhr.response.access_key, xhr.response.share_url);
+        const localUpload = withLocalCredential(uploaded);
+        state.files = [localUpload, ...state.files.filter((item) => item.name !== uploaded.name)];
         if (state.currentRoute === "files") renderFiles();
-        elements.fileCount.textContent = String(state.files.length);
-        elements.protectedFileCount.textContent = String(state.files.filter((item) => item.password_protected).length);
+        if (elements.fileCount) elements.fileCount.textContent = String(state.files.length);
+        if (elements.protectedFileCount) elements.protectedFileCount.textContent = String(state.files.filter((item) => item.password_protected).length);
       }
+      showShareUrl(xhr.response.share_url);
       toast(`${file.name} uploaded${settings.password ? " with permanent password protection" : ""}.`, "success");
     } else {
       status.textContent = "Failed";
@@ -527,6 +715,217 @@ function uploadFile(file, settings) {
   xhr.addEventListener("error", () => { status.textContent = "Failed"; toast(`Could not upload ${file.name}.`, "error"); finishUpload(id); });
   xhr.addEventListener("abort", () => { status.textContent = "Cancelled"; finishUpload(id); });
   xhr.send(file);
+}
+
+function acceptCreatedDrop(payload, successMessage) {
+  const uploaded = payload?.file;
+  if (uploaded) {
+    rememberDropCredential(uploaded, payload.access_key, payload.share_url);
+    const localUpload = withLocalCredential(uploaded);
+    state.files = [localUpload, ...state.files.filter((item) => item.name !== uploaded.name)];
+    if (state.currentRoute === "files" && state.info?.active_drop_browsing) renderFiles();
+    if (state.info?.active_drop_browsing) {
+      if (elements.fileCount) elements.fileCount.textContent = String(state.files.length);
+      if (elements.protectedFileCount) elements.protectedFileCount.textContent = String(state.files.filter((item) => item.password_protected).length);
+    }
+  }
+  showShareUrl(payload.share_url);
+  toast(successMessage, "success");
+}
+
+function updateDropTextCharacterCount() {
+  const maximum = elements.dropTextInput.maxLength || 32768;
+  const length = elements.dropTextInput.value.length;
+  elements.dropTextCharacterCount.textContent = `${length.toLocaleString()} / ${maximum.toLocaleString()}`;
+  elements.shareTextDropButton.disabled = !elements.dropTextInput.value.trim();
+}
+
+async function shareDropText() {
+  const text = elements.dropTextInput.value.trim();
+  if (!text) return;
+  elements.shareTextDropButton.disabled = true;
+  try {
+    const payload = await api("/api/drops/text", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        text,
+        title: elements.dropTextTitle.value.trim() || "Shared Text",
+        mode: elements.dropTextMode.value,
+        language: elements.dropTextMode.value === "code" ? (elements.dropTextLanguage.value || null) : null,
+        expires_in_seconds: quickDropExpirySeconds(),
+      }),
+    });
+    elements.dropTextInput.value = "";
+    updateDropTextCharacterCount();
+    acceptCreatedDrop(payload, "Temporary text Drop created.");
+  } catch (error) {
+    toast(error.message, "error");
+    updateDropTextCharacterCount();
+  }
+}
+
+function voiceFilename(mimeType) {
+  const extension = mimeType.includes("ogg")
+    ? "ogg"
+    : mimeType.includes("mp4")
+      ? "m4a"
+      : mimeType.includes("wav")
+        ? "wav"
+        : mimeType.includes("aac")
+          ? "aac"
+          : "webm";
+  return `voice-${new Date().toISOString().replace(/[:.]/g, "-")}.${extension}`;
+}
+
+async function uploadVoiceBlob(blob) {
+  const filename = voiceFilename(blob.type || "audio/webm");
+  elements.voiceStatus.textContent = `Uploading ${formatBytes(blob.size)}…`;
+  try {
+    const response = await fetch(`/api/drops/files?filename=${encodeURIComponent(filename)}`, {
+      method: "PUT",
+      cache: "no-store",
+      headers: {
+        "Content-Type": blob.type || "audio/webm",
+        "X-NightWire-Drop-Kind": "voice",
+        "X-NightWire-Expires-In-Seconds": String(quickDropExpirySeconds()),
+      },
+      body: blob,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `Voice upload failed (${response.status}).`);
+    elements.voiceStatus.textContent = "Voice message uploaded through the Drop transfer pipeline.";
+    acceptCreatedDrop(payload, "Voice-message Drop created.");
+  } catch (error) {
+    elements.voiceStatus.textContent = error.message;
+    toast(error.message, "error");
+  }
+}
+
+function recorderForStream(stream) {
+  const candidates = [
+    "audio/mp4;codecs=mp4a.40.2",
+    "audio/mp4",
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+  ];
+  for (const mimeType of candidates) {
+    try {
+      if (MediaRecorder.isTypeSupported?.(mimeType)) return new MediaRecorder(stream, { mimeType });
+    } catch (_) {}
+  }
+  return new MediaRecorder(stream);
+}
+
+function drawVoiceMatrix() {
+  const canvas = elements.voiceVisualizer;
+  const context = canvas.getContext("2d");
+  const analyser = state.voiceAnalyser;
+  if (!context || !analyser) return;
+  const values = new Uint8Array(analyser.frequencyBinCount);
+  analyser.getByteFrequencyData(values);
+  const columns = 16;
+  const rows = 4;
+  const gap = 5;
+  const cellWidth = (canvas.width - gap * (columns - 1)) / columns;
+  const cellHeight = (canvas.height - gap * (rows - 1)) / rows;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  for (let column = 0; column < columns; column += 1) {
+    const value = values[Math.floor((column / columns) * values.length)] / 255;
+    const lit = Math.max(1, Math.ceil(value * rows));
+    for (let row = 0; row < rows; row += 1) {
+      const active = rows - row <= lit;
+      context.fillStyle = active
+        ? `rgba(104, 229, 238, ${0.38 + value * 0.62})`
+        : "rgba(129, 160, 185, 0.12)";
+      context.fillRect(column * (cellWidth + gap), row * (cellHeight + gap), cellWidth, cellHeight);
+    }
+  }
+  const elapsed = Math.max(0, Math.floor((performance.now() - state.voiceStartedAt) / 1000));
+  elements.voiceElapsed.textContent = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
+  state.voiceAnimationFrame = requestAnimationFrame(drawVoiceMatrix);
+}
+
+async function startVoiceVisualization(stream) {
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContextClass) return;
+  try {
+    state.voiceAudioContext = new AudioContextClass();
+    await state.voiceAudioContext.resume();
+    const source = state.voiceAudioContext.createMediaStreamSource(stream);
+    state.voiceAnalyser = state.voiceAudioContext.createAnalyser();
+    state.voiceAnalyser.fftSize = 64;
+    source.connect(state.voiceAnalyser);
+    state.voiceStartedAt = performance.now();
+    elements.voiceVisualizer.classList.add("recording");
+    drawVoiceMatrix();
+  } catch (_) {
+    // Recording remains functional when visual analysis is unavailable.
+  }
+}
+
+function stopVoiceVisualization() {
+  if (state.voiceAnimationFrame) cancelAnimationFrame(state.voiceAnimationFrame);
+  state.voiceAnimationFrame = null;
+  state.voiceAnalyser = null;
+  state.voiceAudioContext?.close().catch(() => {});
+  state.voiceAudioContext = null;
+  state.voiceStartedAt = 0;
+  elements.voiceVisualizer.classList.remove("recording");
+}
+
+function useVoiceCaptureFallback(message) {
+  elements.voiceStatus.textContent = message;
+  elements.voiceCaptureInput.click();
+}
+
+async function startVoiceRecording() {
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    useVoiceCaptureFallback("Use your device recorder, then choose the audio message to share.");
+    return;
+  }
+  try {
+    state.voiceStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    state.voiceChunks = [];
+    const recorder = recorderForStream(state.voiceStream);
+    state.voiceRecorder = recorder;
+    recorder.addEventListener("dataavailable", (event) => {
+      if (event.data?.size) state.voiceChunks.push(event.data);
+    });
+    recorder.addEventListener("stop", () => {
+      const type = recorder.mimeType || state.voiceChunks[0]?.type || "audio/webm";
+      const blob = new Blob(state.voiceChunks, { type });
+      state.voiceStream?.getTracks().forEach((track) => track.stop());
+      stopVoiceVisualization();
+      state.voiceRecorder = null;
+      state.voiceStream = null;
+      elements.recordVoiceButton.classList.remove("hidden");
+      elements.stopVoiceButton.classList.add("hidden");
+      if (blob.size) uploadVoiceBlob(blob);
+      else elements.voiceStatus.textContent = "No audio was recorded.";
+    }, { once: true });
+    recorder.start(250);
+    await startVoiceVisualization(state.voiceStream);
+    elements.recordVoiceButton.classList.add("hidden");
+    elements.stopVoiceButton.classList.remove("hidden");
+    elements.voiceStatus.textContent = "Recording… stop when your message is ready.";
+  } catch (error) {
+    state.voiceStream?.getTracks().forEach((track) => track.stop());
+    stopVoiceVisualization();
+    state.voiceStream = null;
+    state.voiceRecorder = null;
+    if (!window.isSecureContext || error?.name === "NotSupportedError") {
+      useVoiceCaptureFallback("Use your device recorder, then choose the audio message to share.");
+    } else {
+      elements.voiceStatus.textContent = "Microphone permission is required to record a voice message.";
+      toast(error.message || "Microphone access was not granted.", "error");
+    }
+  }
+}
+
+function stopVoiceRecording() {
+  if (state.voiceRecorder?.state === "recording") state.voiceRecorder.stop();
 }
 
 function finishUpload(id) {
@@ -786,6 +1185,12 @@ function openSettings(kind, item) {
   elements.settingsTitle.textContent = kind === "file" ? "Edit file countdown" : "Edit text countdown";
   elements.settingsSubtitle.textContent = kind === "file" ? item.name : `Shared text · ${item.text_length.toLocaleString()} characters`;
   elements.settingsExpiryPreset.value = "keep";
+  elements.settingsUnlimitedOption.hidden = kind === "file";
+  elements.settingsUnlimitedOption.disabled = kind === "file";
+  const maximumSeconds = kind === "file"
+    ? (state.info?.drop_max_expiry_seconds || 365 * 86400)
+    : (state.info?.item_max_expiry_seconds || 365 * 86400);
+  elements.settingsCustomExpiry.max = String(Math.floor(maximumSeconds / 60));
   elements.settingsCustomExpiry.value = kind === "file" ? "60" : "10";
   elements.settingsExpiryStatus.textContent = item.expires_at ? `Current setting: ${formatCountdown(item.expires_at)}.` : "Current setting: unlimited / never auto-delete.";
   updateSettingsFields();
@@ -809,7 +1214,8 @@ function settingsExpirySeconds() {
   if (value === "keep") return undefined;
   if (value !== "custom") return Number.parseInt(value, 10);
   const minutes = Number(elements.settingsCustomExpiry.value);
-  const maximum = Math.floor((state.info?.item_max_expiry_seconds || 365 * 86400) / 60);
+  const maximumSeconds = state.settingsTarget?.kind === "file" ? state.info?.drop_max_expiry_seconds : state.info?.item_max_expiry_seconds;
+  const maximum = Math.floor((maximumSeconds || 365 * 86400) / 60);
   if (!Number.isFinite(minutes) || minutes < 1 || minutes > maximum) {
     throw new Error(`Custom countdown must be between 1 and ${maximum.toLocaleString()} minutes.`);
   }
@@ -867,6 +1273,25 @@ function closePasswordModal() {
   state.passwordAction = null;
   elements.passwordModal.classList.add("hidden");
   document.body.classList.remove("modal-open");
+}
+
+function showShareUrl(url) {
+  if (!url) return;
+  elements.shareUrlInput.value = url;
+  elements.shareQrImage.src = `/api/qr?url=${encodeURIComponent(url)}&v=${Date.now()}`;
+  elements.shareModal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+  elements.shareUrlInput.select();
+}
+
+function closeShareModal() {
+  elements.shareModal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+async function copyShareUrl() {
+  const copied = await copyText(elements.shareUrlInput.value);
+  toast(copied ? "Complete Drop link copied." : "Could not copy the Drop link.", copied ? "success" : "error");
 }
 
 async function submitPassword(event) {
@@ -984,7 +1409,6 @@ function bindEvents() {
   }
   window.addEventListener("popstate", () => setRoute(routeFromPath(), false));
 
-  elements.browseButton.addEventListener("click", (event) => { event.stopPropagation(); elements.fileInput.click(); });
   elements.dropzone.addEventListener("click", () => elements.fileInput.click());
   elements.dropzone.addEventListener("keydown", (event) => {
     if (event.key === "Enter" || event.key === " ") { event.preventDefault(); elements.fileInput.click(); }
@@ -993,8 +1417,21 @@ function bindEvents() {
   document.querySelector("[data-upload-control]")?.addEventListener("click", (event) => event.stopPropagation());
   document.querySelector("[data-upload-control]")?.addEventListener("keydown", (event) => event.stopPropagation());
   elements.fileExpiryPreset.addEventListener("change", updateCreationFields);
-  elements.filePassword.addEventListener("input", updateCreationFields);
-  elements.searchInput.addEventListener("input", renderFiles);
+  elements.filePassword?.addEventListener("input", updateCreationFields);
+  elements.dropTextInput.addEventListener("input", updateDropTextCharacterCount);
+  elements.dropTextMode.addEventListener("change", () => { elements.dropTextLanguageWrap.classList.toggle("hidden", elements.dropTextMode.value !== "code"); });
+  elements.dropTextInput.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") { event.preventDefault(); shareDropText(); }
+  });
+  elements.shareTextDropButton.addEventListener("click", shareDropText);
+  elements.recordVoiceButton.addEventListener("click", startVoiceRecording);
+  elements.stopVoiceButton.addEventListener("click", stopVoiceRecording);
+  elements.voiceCaptureInput.addEventListener("change", () => {
+    const recording = elements.voiceCaptureInput.files?.[0];
+    if (recording) uploadVoiceBlob(recording);
+    elements.voiceCaptureInput.value = "";
+  });
+  elements.searchInput?.addEventListener("input", renderFiles);
   elements.refreshButton.addEventListener("click", () => loadFiles({ quiet: false }).then(() => toast("Files refreshed.", "success")).catch(() => {}));
   elements.copyAddressButton.addEventListener("click", () => copyAddress(elements.copyAddressButton));
   elements.copyQrAddressButton.addEventListener("click", () => copyAddress(elements.copyQrAddressButton));
@@ -1015,7 +1452,7 @@ function bindEvents() {
     setTimeout(() => recommendClipboardText(selectedTextFromTarget(event.target)), 0);
   });
   document.addEventListener("paste", (event) => {
-    if (event.target === elements.clipboardInput || event.target instanceof HTMLInputElement) return;
+    if (event.target === elements.clipboardInput || event.target === elements.dropTextInput || event.target instanceof HTMLInputElement) return;
     recommendClipboardText(event.clipboardData?.getData("text/plain") || "");
   });
 
@@ -1040,10 +1477,15 @@ function bindEvents() {
   elements.closePasswordButton.addEventListener("click", closePasswordModal);
   elements.cancelPasswordButton.addEventListener("click", closePasswordModal);
   elements.passwordModal.addEventListener("click", (event) => { if (event.target === elements.passwordModal) closePasswordModal(); });
+  elements.closeShareButton.addEventListener("click", closeShareModal);
+  elements.dismissShareButton.addEventListener("click", closeShareModal);
+  elements.copyShareButton.addEventListener("click", copyShareUrl);
+  elements.shareModal.addEventListener("click", (event) => { if (event.target === elements.shareModal) closeShareModal(); });
 
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     if (!elements.passwordModal.classList.contains("hidden")) closePasswordModal();
+    else if (!elements.shareModal.classList.contains("hidden")) closeShareModal();
     else if (!elements.settingsModal.classList.contains("hidden")) closeSettings();
   });
 
@@ -1062,10 +1504,12 @@ async function start() {
   bindEvents();
   setRoute(routeFromPath(), false);
   updateClipboardCharacterCount();
+  updateDropTextCharacterCount();
   updateCreationFields();
   renderClipboard();
   try {
-    await Promise.all([loadInfo(), loadFiles(), heartbeat(), loadClipboard()]);
+    await loadInfo();
+    await Promise.all([loadFiles(), heartbeat(), loadClipboard()]);
     setServerOnline(true);
   } catch (error) {
     setServerOnline(false);

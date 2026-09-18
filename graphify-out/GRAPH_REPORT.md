@@ -1,17 +1,17 @@
-# Graph Report - NightWire  (2026-09-13)
+# Graph Report - NightWire  (2026-09-14)
 
 ## Corpus Check
-- 54 files · ~37,795 words
+- 56 files · ~42,640 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 7 file(s) not represented in the graph (top: (none) 3, .zip 1, .bat 1)
 
 ## Summary
-- 1005 nodes · 2122 edges · 64 communities (55 shown, 7 thin omitted)
-- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 197 edges (avg confidence: 0.9)
+- 1087 nodes · 2342 edges · 66 communities (55 shown, 8 thin omitted)
+- Extraction: 90% EXTRACTED · 10% INFERRED · 0% AMBIGUOUS · INFERRED: 223 edges (avg confidence: 0.9)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `7cfaa33a`
+- Built from commit: `d225b577`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -19,7 +19,7 @@
 - Request
 - Configuration Reference
 - README.md
-- add_clipboard_entry
+- Any
 - HTTP API Reference
 - Contributing to NightWire
 - NightWire v1.0.2 Architecture Inventory
@@ -28,68 +28,69 @@
 - install.sh
 - config.py
 - update-existing.sh
-- safe_file_path
+- Path
 - run.sh
 - asgi_request
 - nightwire
 - Troubleshooting
 - drop.js
-- bootstrap.py
+- ApplicationRegistry
 - Project Architecture
 - ⚡ Features
 - ContentProcessor
 - text/__init__.py
 - 🚀 Installation
-- NightWire Documentation
+- service.py
 - DropItem
-- ObjectId
+- LocalFilesystemStorageTests
 - CoreTransferService
 - TemporaryUploadId
-- LocalFilesystemStorage
+- ObjectId
 - test_app.py
 - test_core_services.py
-- core/__init__.py
-- runtime.py
-- share_clipboard
-- Files
-- test_dependency_boundaries.py
-- TemporaryUpload
 - StorageBackend
-- TransferService
+- runtime.py
+- DropClipboardService
+- _ImmediateAsyncFile
+- test_dependency_boundaries.py
+- PasswordDigest
+- processors/__init__.py
 - security.py
 - CoreSecurityPipeline
-- ProcessorExecutionResult
-- test_core_storage.py
-- PasswordDigest
-- TransferProgressStore
-- _Scanner
-- service.py
-- _ImmediateAsyncFile
+- drop-share.js
+- IsolatedApplicationState
+- CoreTransferServiceTests
+- test_drop.py
+- core/__init__.py
+- CoreLifecycleService
+- DropRepository
+- test_characterization.py
 - DropService
-- DropServiceTests
-- ApplicationRegistry
-- Any
+- share_clipboard
+- json_request
+- LinuxInstallUpdateSmokeTests
 - ModuleContext
-- test_processors.py
+- _Scanner
 - test_bootstrap.py
 - build_application
 - load_port
 - .test_enabled_module_can_register_routes_and_lifecycle_hooks
-- .load
-- .save
-- .object_size
+- Files
+- _ImmediateAsyncFile
+- ClipboardCharacterizationTests
+- NightWire Documentation
 
 ## God Nodes (most connected - your core abstractions)
 1. `ObjectId` - 70 edges
 2. `StorageBackend` - 44 edges
 3. `LocalFilesystemStorage` - 44 edges
-4. `DropService` - 32 edges
-5. `TemporaryUploadId` - 31 edges
-6. `DropItem` - 30 edges
-7. `CoreTransferService` - 25 edges
-8. `bindEvents()` - 24 edges
-9. `asgi_request()` - 24 edges
-10. `LocalDropRepository` - 22 edges
+4. `DropService` - 40 edges
+5. `DropItem` - 32 edges
+6. `TemporaryUploadId` - 31 edges
+7. `bindEvents()` - 30 edges
+8. `asgi_request()` - 29 edges
+9. `CoreTransferService` - 25 edges
+10. `LocalDropRepository` - 24 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `DropServiceTests` --uses--> `PasswordProtection`  [INFERRED]
@@ -98,19 +99,19 @@
   tests/test_bootstrap.py → nightwire/app/registration.py
 - `ModuleRegistrationContractTests` --uses--> `ApplicationRegistry`  [INFERRED]
   tests/test_bootstrap.py → nightwire/app/registration.py
-- `ConditionalBuiltInModuleTests` --uses--> `InstalledModules`  [INFERRED]
-  tests/test_bootstrap.py → nightwire/core/config.py
-- `DropServiceTests` --uses--> `CoreLifecycleService`  [INFERRED]
-  tests/test_drop.py → nightwire/core/lifecycle.py
+- `DropServiceTests` --uses--> `DeploymentProfile`  [INFERRED]
+  tests/test_drop.py → nightwire/core/config.py
+- `RefactoredApplicationEndToEndTests` --uses--> `DeploymentProfile`  [INFERRED]
+  tests/test_e2e_regression.py → nightwire/core/config.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (64 total, 7 thin omitted)
+## Communities (66 total, 8 thin omitted)
 
 ### Community 0 - "Request"
-Cohesion: 0.22
-Nodes (21): JSONResponse, clear_clipboard(), delete_clipboard(), delete_file(), download_file(), download_protected_file(), list_clipboard(), list_devices() (+13 more)
+Cohesion: 0.14
+Nodes (34): JSONResponse, Request, clear_clipboard(), current_drop_service(), delete_clipboard(), delete_file(), delete_file_record(), download_file() (+26 more)
 
 ### Community 1 - "Configuration Reference"
 Cohesion: 0.17
@@ -120,13 +121,13 @@ Nodes (12): Configuration Reference, Deployment profiles, Fixed application limi
 Cohesion: 0.16
 Nodes (10): 🤝 Contributing, 🛠 Development, 📚 Documentation, 📄 License, ✨ Overview, 🧱 Project structure, 📦 Requirements, 🔒 Security model (+2 more)
 
-### Community 3 - "add_clipboard_entry"
-Cohesion: 0.12
-Nodes (19): add_clipboard_entry(), clear_clipboard_entries(), _clipboard_entry_locked(), clipboard_snapshot(), delete_clipboard_entry(), _expires_at_from_seconds(), normalize_clipboard_text(), parse_iso_timestamp() (+11 more)
+### Community 3 - "Any"
+Cohesion: 0.11
+Nodes (22): active_device_records(), add_clipboard_entry(), _apply_item_settings(), _clipboard_entry_locked(), clipboard_snapshot(), _expires_at_from_seconds(), normalize_clipboard_expiry(), normalize_clipboard_text() (+14 more)
 
 ### Community 5 - "HTTP API Reference"
-Cohesion: 0.08
-Nodes (24): Clients, Clipboard, Common error shape, `DELETE /api/clipboard`, `DELETE /api/clipboard/{entry_id}`, `DELETE /api/files/{filename}`, Files, `GET /api/clipboard?since_revision=REVISION` (+16 more)
+Cohesion: 0.07
+Nodes (29): Clients, Clipboard, Common error shape, `DELETE /api/clipboard`, `DELETE /api/clipboard/{entry_id}`, `DELETE /api/files/{filename}`, Drop creation and browsing, Files (+21 more)
 
 ### Community 6 - "Contributing to NightWire"
 Cohesion: 0.11
@@ -141,40 +142,40 @@ Cohesion: 0.18
 Nodes (10): Clients, Clipboard, Clipboard persistence, Copy and paste detection, Pages, Protected clipboard entries, Recommended workflow, Retention defaults and limits (+2 more)
 
 ### Community 9 - "Security Model"
-Cohesion: 0.13
-Nodes (15): Clipboard protections and limitations, Deployment recommendations, File handling protections, HTTP response headers, Intended deployment, Lost passwords, Password protection, Protection scope (+7 more)
+Cohesion: 0.12
+Nodes (16): Clipboard protections and limitations, Deployment recommendations, Drop Access Keys, File handling protections, HTTP response headers, Intended deployment, Lost passwords, Password protection (+8 more)
 
 ### Community 10 - "install.sh"
 Cohesion: 0.43
 Nodes (5): as_admin(), as_install_user(), install.sh script, fail(), find_uv()
 
 ### Community 11 - "config.py"
-Cohesion: 0.11
-Nodes (15): Enum, DeploymentProfile, InstalledModules, load_application_config(), _parse_deployment_profile(), _parse_enabled(), Path, Central application configuration for NightWire. The legacy ``app.py`` entry… (+7 more)
+Cohesion: 0.10
+Nodes (17): Enum, ApplicationConfig, DeploymentProfile, InstalledModules, load_application_config(), _parse_deployment_profile(), _parse_enabled(), Path (+9 more)
 
 ### Community 12 - "update-existing.sh"
 Cohesion: 0.53
 Nodes (4): as_root(), fail(), update-existing.sh script, usage()
 
-### Community 13 - "safe_file_path"
-Cohesion: 0.32
-Nodes (3): Resolve a user-provided filename and prevent path traversal., safe_file_path(), PathTests
+### Community 13 - "Path"
+Cohesion: 0.17
+Nodes (11): _default_file_metadata(), _delete_stored_file_locked(), _file_metadata_locked(), human_file_record(), _metadata_object_id(), metadata_path(), Path, Resolve a user-provided filename and prevent path traversal. (+3 more)
 
 ### Community 15 - "asgi_request"
-Cohesion: 0.05
-Nodes (22): Compatibility import and executable entry point for NightWire., StrEnum, TransferDirection, TransferPhase, asgi_request(), _asgi_request_async(), _CapturedResponse, ClientVisibilityCharacterizationTests (+14 more)
+Cohesion: 0.23
+Nodes (3): asgi_request(), FileUploadCharacterizationTests, RefactoredApplicationEndToEndTests
 
 ### Community 18 - "Troubleshooting"
 Cohesion: 0.12
-Nodes (16): A partial upload file appears, A password was forgotten, Another device cannot connect, Clipboard items disappeared after restart, Clipboard watching is unavailable, Countdown did not delete an item, File metadata problems, Installed version did not change (+8 more)
+Nodes (17): A Drop share link was lost, A partial upload file appears, A password was forgotten, Another device cannot connect, Clipboard items disappeared after restart, Clipboard watching is unavailable, Countdown did not delete an item, File metadata problems (+9 more)
 
 ### Community 19 - "drop.js"
-Cohesion: 0.10
-Nodes (61): actionButton(), api(), askPassword(), bindEvents(), clipboardPreview(), clipboardShareSettings(), closePasswordModal(), closeSettings() (+53 more)
+Cohesion: 0.08
+Nodes (75): acceptCreatedDrop(), actionButton(), api(), askPassword(), bindEvents(), clipboardPreview(), clipboardShareSettings(), closePasswordModal() (+67 more)
 
-### Community 20 - "bootstrap.py"
-Cohesion: 0.15
-Nodes (12): configured_modules(), Starlette application bootstrap and module composition., Return built-in modules paired with their resolved enabled state., Application composition package with cycle-safe lazy compatibility exports., Contracts used by NightWire modules during application composition., ApplicationConfig, Resolved paths, limits, installed modules, and deployment profile., __getattr__() (+4 more)
+### Community 20 - "ApplicationRegistry"
+Cohesion: 0.10
+Nodes (18): LifecycleHook, configured_modules(), Starlette application bootstrap and module composition., Return built-in modules paired with their resolved enabled state., Application composition package with cycle-safe lazy compatibility exports., ApplicationRegistry, Any, Contracts used by NightWire modules during application composition. (+10 more)
 
 ### Community 21 - "Project Architecture"
 Cohesion: 0.12
@@ -182,135 +183,127 @@ Nodes (16): Application bootstrap and module registration, Browser routing, Clea
 
 ### Community 22 - "⚡ Features"
 Cohesion: 0.29
-Nodes (7): 📱 Browser-native clients, ⚡ Features, 📁 LAN-speed file sharing, ⏳ Lifecycle controls, 🪶 Lightweight core, 🔐 Optional protection, 📋 Shared clipboard
+Nodes (7): 📱 Browser-native clients, ⚡ Features, 📁 LAN-speed file sharing, ⏳ Lifecycle controls, 🪶 Lightweight core, 🔐 Private share access, 📋 Shared clipboard
 
 ### Community 23 - "ContentProcessor"
-Cohesion: 0.11
-Nodes (10): ContentProcessor, ProcessorContext, ProcessorRegistry, ABC, Versioned content-processor contracts and deterministic execution results., Optional post-storage transformation or analysis contract., Stable registry name., Implementation version persisted with every execution result. (+2 more)
+Cohesion: 0.10
+Nodes (11): ContentProcessor, ProcessorContext, ProcessorRegistry, ABC, Optional post-storage transformation or analysis contract., Stable registry name., Implementation version persisted with every execution result., Return whether this processor accepts the stored content. (+3 more)
 
 ### Community 25 - "🚀 Installation"
 Cohesion: 0.50
 Nodes (4): Install on Fedora, Ubuntu, or macOS, Install on Windows, 🚀 Installation, Run from the source tree
 
-### Community 26 - "NightWire Documentation"
-Cohesion: 0.67
-Nodes (3): Documentation conventions, Guides, NightWire Documentation
+### Community 26 - "service.py"
+Cohesion: 0.16
+Nodes (11): DropAccessKeyPolicy, Generation and verification of bearer Access Keys for Drop shares., Create high-entropy URL-safe keys while persisting only salted digests., AccessKeyDigest, DropDownload, DropUpload, Drop domain types independent of HTTP routes and legacy dictionaries., Non-recoverable verifier for a Drop bearer Access Key. (+3 more)
 
 ### Community 27 - "DropItem"
-Cohesion: 0.10
-Nodes (11): DropItem, Any, One logical ephemeral file shared through Drop., LocalDropRepository, Any, Path, Return one logical Drop item., Return all persisted Drop items. (+3 more)
-
-### Community 28 - "ObjectId"
-Cohesion: 0.11
-Nodes (6): ObjectId, Open a permanent object by logical ID., Atomically persist JSON-compatible metadata for an object., Load an object's persisted metadata when present., Stable logical identity for one permanently stored object., LocalFilesystemStorageTests
+Cohesion: 0.13
+Nodes (8): DropItem, Any, One logical ephemeral file shared through Drop., LocalDropRepository, Any, Path, Filename-keyed JSON metadata retained for upgrade compatibility., DropDomainRepositoryTests
 
 ### Community 29 - "CoreTransferService"
-Cohesion: 0.15
-Nodes (9): CompletedUpload, CoreTransferService, chunks(), PendingUpload, Final transfer facts associated with a stable object ID., Promote one pending upload into permanent storage., Core streaming implementation backed by a logical StorageBackend., A fully streamed upload that has not entered permanent storage. (+1 more)
+Cohesion: 0.12
+Nodes (11): CompletedUpload, CoreTransferService, chunks(), PendingUpload, Final transfer facts associated with a stable object ID., Stream chunks into isolated temporary storage and calculate integrity., Promote one pending upload into permanent storage., Discard one pending upload without finalizing it. (+3 more)
 
 ### Community 30 - "TemporaryUploadId"
-Cohesion: 0.15
-Nodes (7): Atomically promote a temporary upload to permanent object storage., Map a validated upload ID to its isolated physical reference., Logical identity for an isolated, not-yet-finalized upload., Backend-neutral facts returned after an object is finalized., Open a previously allocated temporary upload., StoredObject, TemporaryUploadId
+Cohesion: 0.09
+Nodes (12): Return unfinished uploads available for orphan cleanup., Atomically promote a temporary upload to permanent object storage., Logical identity for an isolated, not-yet-finalized upload., Backend-neutral facts returned after an object is finalized., Backend-neutral facts about one unfinished upload., Reserve an isolated temporary upload and return its logical ID., Open a previously allocated temporary upload., Return whether a temporary upload currently exists. (+4 more)
 
-### Community 31 - "LocalFilesystemStorage"
-Cohesion: 0.23
-Nodes (6): LocalFilesystemStorage, Any, Path, Object-ID storage rooted inside the existing NightWire files directory., Map a validated object ID to its opaque physical reference., Map a validated object ID to its internal metadata sidecar.
+### Community 31 - "ObjectId"
+Cohesion: 0.11
+Nodes (12): LocalFilesystemStorage, ObjectId, Any, Path, Open a permanent object by logical ID., Atomically persist JSON-compatible metadata for an object., Load an object's persisted metadata when present., Object-ID storage rooted inside the existing NightWire files directory. (+4 more)
 
 ### Community 32 - "test_app.py"
-Cohesion: 0.13
-Nodes (8): create_password_record(), delete_file_record(), update_file_settings(), CleanupWorkerTests, FileLifecycleTests, immediate_run_sync(), PasswordTests, Run the cleanup join inline so Python 3.14 does not retain an AnyIO worker.
+Cohesion: 0.14
+Nodes (7): create_password_record(), update_file_settings(), CleanupWorkerTests, FileLifecycleTests, immediate_run_sync(), PasswordTests, Run the cleanup join inline so Python 3.14 does not retain an AnyIO worker.
 
 ### Community 33 - "test_core_services.py"
-Cohesion: 0.21
-Nodes (15): AllowAllCapacityPolicy, CapacityDecision, CapacityMeter, CapacityPolicy, CapacityRequest, CapacitySnapshot, ABC, Capacity and quota policy contracts for storage-backed modules. (+7 more)
+Cohesion: 0.23
+Nodes (14): AllowAllCapacityPolicy, CapacityDecision, CapacityMeter, CapacityPolicy, CapacityRequest, CapacitySnapshot, ABC, Capacity and quota policy contracts for storage-backed modules. (+6 more)
 
-### Community 34 - "core/__init__.py"
-Cohesion: 0.15
-Nodes (13): Shared configuration, lifecycle, and infrastructure primitives., CoreLifecycleService, LifecycleItem, LifecycleService, LifecycleSweep, ABC, Core lifecycle decisions and temporary-upload housekeeping., Backend-neutral lifecycle facts for one logical item. (+5 more)
+### Community 34 - "StorageBackend"
+Cohesion: 0.12
+Nodes (9): Discard inactive temporary uploads older than the configured threshold., ABC, Return whether an object currently exists., Return an object's current byte length., Return an object's modification timestamp., Remove an object if it exists., Storage operations addressed only by logical object/upload IDs., StorageBackend (+1 more)
 
 ### Community 35 - "runtime.py"
-Cohesion: 0.16
-Nodes (19): _apply_item_settings(), cleanup_expired_items(), _cleanup_worker(), current_drop_service(), current_security_pipeline(), current_storage_backend(), current_transfer_service(), _download_headers() (+11 more)
+Cohesion: 0.12
+Nodes (26): cleanup_expired_items(), _cleanup_worker(), clear_clipboard_entries(), current_security_pipeline(), current_storage_backend(), current_transfer_service(), delete_clipboard_entry(), _download_headers() (+18 more)
 
-### Community 36 - "share_clipboard"
-Cohesion: 0.09
-Nodes (15): clean_text(), client_heartbeat(), normalize_client_ip(), normalize_optional_password(), parse_user_agent(), Return an optional creation-time password; empty values mean unprotected., Return a compact device/browser summary without adding a parser dependency., share_clipboard() (+7 more)
-
-### Community 37 - "Files"
-Cohesion: 0.40
-Nodes (5): Auto-delete behavior, Download and deletion, Files, Password behavior, Upload a file
+### Community 36 - "DropClipboardService"
+Cohesion: 0.15
+Nodes (5): DropClientVisibilityService, DropClipboardService, Any, RLock, Temporary Drop-facing facades for clipboard and client-presence behavior.
 
 ### Community 38 - "test_dependency_boundaries.py"
 Cohesion: 0.60
 Nodes (3): FeatureDependencyBoundaryTests, _internal_module_names(), _resolved_import()
 
-### Community 39 - "TemporaryUpload"
-Cohesion: 0.50
-Nodes (3): Return unfinished uploads available for orphan cleanup., Backend-neutral facts about one unfinished upload., TemporaryUpload
-
-### Community 40 - "StorageBackend"
-Cohesion: 0.10
-Nodes (18): Return whether an object currently exists., Return an object's modification timestamp., Remove an object if it exists., Storage operations addressed only by logical object/upload IDs., Reserve an isolated temporary upload and return its logical ID., Return whether a temporary upload currently exists., Remove a temporary upload if it exists., StorageBackend (+10 more)
-
-### Community 41 - "TransferService"
-Cohesion: 0.15
-Nodes (9): DownloadTransfer, ABC, Prepared object download with observable progress and streamed chunks., Stream uploads/downloads and finalize content without filesystem paths., Stream chunks into isolated temporary storage and calculate integrity., Discard one pending upload without finalizing it., Prepare a lazily streamed permanent-object download., TransferService (+1 more)
-
-### Community 42 - "security.py"
-Cohesion: 0.20
-Nodes (11): compare_mime_evidence(), detect_mime_signature(), MimeComparison, MimeDetection, normalize_mime(), Any, StrEnum, Content-type evidence, security verdicts, and scanner-neutral inspection. (+3 more)
-
-### Community 43 - "CoreSecurityPipeline"
+### Community 39 - "PasswordDigest"
 Cohesion: 0.17
-Nodes (9): CoreSecurityPipeline, MalwareScannerAdapter, ABC, Detect, compare, scan, and persist one stored object's security result., Scanner contract addressed by object identity, never a caller path., Stable scanner implementation name., SecurityPipeline, CoreSecurityTests (+1 more)
+Nodes (7): PasswordProtection, Configured password protection and HTTP creation-password middleware., decode_optional_password_header(), Decode a UTF-8 password transported in a base64 request header., PasswordDigest, Backend-neutral password verifier data; plaintext is never retained., PasswordProtectionContract
 
-### Community 44 - "ProcessorExecutionResult"
-Cohesion: 0.13
-Nodes (8): DerivedObject, ProcessorExecutionResult, ProcessorIdentity, Any, Process content without assuming a local filesystem path., A stored object produced from another object by a processor., Compatibility projection for callers that previously read a name string., ProcessorExecutionResultTests
+### Community 40 - "processors/__init__.py"
+Cohesion: 0.08
+Nodes (26): DerivedObject, ProcessorExecutionResult, ProcessorExecutionStatus, ProcessorIdentity, Any, StrEnum, Versioned content-processor contracts and deterministic execution results., A stored object produced from another object by a processor. (+18 more)
 
-### Community 45 - "test_core_storage.py"
+### Community 41 - "security.py"
+Cohesion: 0.17
+Nodes (12): compare_mime_evidence(), detect_mime_signature(), MimeComparison, MimeDetection, normalize_mime(), Any, StrEnum, Content-type evidence, security verdicts, and scanner-neutral inspection. (+4 more)
+
+### Community 42 - "CoreSecurityPipeline"
+Cohesion: 0.25
+Nodes (7): CoreSecurityPipeline, MalwareScannerAdapter, ABC, Scanner contract addressed by object identity, never a caller path., Stable scanner implementation name., SecurityPipeline, CoreSecurityTests
+
+### Community 43 - "drop-share.js"
+Cohesion: 0.36
+Nodes (9): downloadDrop(), elements, filename, formatBytes(), formatDate(), loadDrop(), presentDropBlob(), saveBlob() (+1 more)
+
+### Community 44 - "IsolatedApplicationState"
+Cohesion: 0.19
+Nodes (3): FileDownloadCharacterizationTests, IsolatedApplicationState, LifecycleCharacterizationTests
+
+### Community 45 - "CoreTransferServiceTests"
 Cohesion: 0.14
 Nodes (3): CoreTransferServiceTests, _immediate_open_file(), _ImmediateAsyncFile
 
-### Community 46 - "PasswordDigest"
-Cohesion: 0.15
-Nodes (11): PasswordProtection, Request, Configured password protection and HTTP creation-password middleware., decode_optional_password_header(), Decode a UTF-8 password transported in a base64 request header., _sanitize_password_record(), verify_password(), PasswordDigest (+3 more)
-
-### Community 47 - "TransferProgressStore"
-Cohesion: 0.28
-Nodes (4): Immutable progress event suitable for modules or a future API projection., Thread-safe bounded state containing the latest event per transfer., TransferProgress, TransferProgressStore
-
-### Community 48 - "_Scanner"
-Cohesion: 0.33
-Nodes (3): MalwareScanResult, Inspect a stored object and return a normalized scanner result., _Scanner
-
-### Community 49 - "service.py"
-Cohesion: 0.17
-Nodes (13): ABC, Logical object storage contracts and the local-filesystem backend., Streaming transfer contracts, progress state, and the Core implementation., DropDownload, DropUpload, Drop domain types independent of HTTP routes and legacy dictionaries., DropRepository, ABC (+5 more)
-
-### Community 51 - "DropService"
-Cohesion: 0.29
-Nodes (3): DropService, Path, RLock
-
-### Community 52 - "DropServiceTests"
+### Community 46 - "test_drop.py"
 Cohesion: 0.14
 Nodes (3): DropServiceTests, _immediate_open_file(), _ImmediateAsyncFile
 
-### Community 53 - "ApplicationRegistry"
-Cohesion: 0.19
-Nodes (8): LifecycleHook, ApplicationRegistry, Any, Mutable route and lifecycle collection populated by enabled modules., Library module package for future stored-file behavior., LibraryModule, Registration boundary for the not-yet-implemented Library module., Participate in composition without contributing functionality yet.
+### Community 47 - "core/__init__.py"
+Cohesion: 0.11
+Nodes (17): Shared configuration, lifecycle, and infrastructure primitives., Logical object storage contracts and the local-filesystem backend., DownloadTransfer, ABC, StrEnum, Streaming transfer contracts, progress state, and the Core implementation., Prepared object download with observable progress and streamed chunks., Stream uploads/downloads and finalize content without filesystem paths. (+9 more)
 
-### Community 54 - "Any"
-Cohesion: 0.27
-Nodes (13): active_device_records(), _default_file_metadata(), _delete_stored_file_locked(), _file_metadata_locked(), human_file_record(), _metadata_object_id(), metadata_path(), purge_inactive_clients() (+5 more)
+### Community 48 - "CoreLifecycleService"
+Cohesion: 0.24
+Nodes (8): CoreLifecycleService, LifecycleService, LifecycleSweep, ABC, Core lifecycle decisions and temporary-upload housekeeping., Classification returned by a lifecycle sweep., Decide item expiration and reclaim abandoned temporary uploads., CoreLifecycleTests
+
+### Community 49 - "DropRepository"
+Cohesion: 0.11
+Nodes (11): _load_file_metadata(), _save_file_metadata_locked(), DropRepository, ABC, Drop metadata repository contract and lightweight local JSON backend., Load durable Drop metadata into the repository., Return one logical Drop item., Return all persisted Drop items. (+3 more)
+
+### Community 50 - "test_characterization.py"
+Cohesion: 0.21
+Nodes (6): Compatibility import and executable entry point for NightWire., _asgi_request_async(), _CapturedResponse, _immediate_open_file(), _immediate_run_sync(), CompatibilityEntryPointTests
+
+### Community 51 - "DropService"
+Cohesion: 0.22
+Nodes (3): DropService, Path, Commit byte/credential/metadata removal as one locked Drop transition.
+
+### Community 52 - "share_clipboard"
+Cohesion: 0.23
+Nodes (10): clean_text(), client_heartbeat(), normalize_client_ip(), normalize_optional_password(), parse_user_agent(), Return an optional creation-time password; empty values mean unprotected., Return a compact device/browser summary without adding a parser dependency., share_clipboard() (+2 more)
+
+### Community 53 - "json_request"
+Cohesion: 0.31
+Nodes (3): ClientVisibilityCharacterizationTests, json_request(), PasswordProtectionCharacterizationTests
 
 ### Community 55 - "ModuleContext"
 Cohesion: 0.20
 Nodes (7): ApplicationModule, ModuleContext, ApplicationHandler, Protocol, Configuration and legacy handlers available during registration., A module capable of contributing routes and lifecycle hooks., RequestHandler
 
-### Community 56 - "test_processors.py"
-Cohesion: 0.20
-Nodes (8): ProcessorExecutionStatus, StrEnum, StrEnum, Read-only logical object made available to a sandbox implementation., SandboxExecutionStatus, SandboxInput, SandboxLimits, SandboxExecutionContractTests
+### Community 56 - "_Scanner"
+Cohesion: 0.33
+Nodes (3): MalwareScanResult, Inspect a stored object and return a normalized scanner result., _Scanner
 
 ### Community 57 - "test_bootstrap.py"
 Cohesion: 0.22
@@ -328,25 +321,33 @@ Nodes (6): local_addresses(), local_ipv4_addresses(), main(), Return usable IPv4
 Cohesion: 0.53
 Nodes (4): endpoint(), register(), shutdown(), startup()
 
+### Community 61 - "Files"
+Cohesion: 0.33
+Nodes (6): Auto-delete behavior, Download and deletion, Files, Password behavior, Share temporary text or voice, Upload a file
+
+### Community 65 - "NightWire Documentation"
+Cohesion: 0.67
+Nodes (3): Documentation conventions, Guides, NightWire Documentation
+
 ## Knowledge Gaps
-- **145 isolated node(s):** `nightwire`, `run.sh script`, `PORT`, `state`, `elements` (+140 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 382 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **7 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **154 isolated node(s):** `nightwire`, `run.sh script`, `PORT`, `elements`, `filename` (+149 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 405 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `ObjectId` connect `ObjectId` to `Request`, `ContentProcessor`, `DropItem`, `CoreTransferService`, `TemporaryUploadId`, `LocalFilesystemStorage`, `core/__init__.py`, `runtime.py`, `StorageBackend`, `TransferService`, `security.py`, `CoreSecurityPipeline`, `ProcessorExecutionResult`, `test_core_storage.py`, `TransferProgressStore`, `_Scanner`, `service.py`, `Any`, `test_processors.py`, `.object_size`?**
-  _High betweenness centrality (0.100) - this node is a cross-community bridge._
-- **Why does `StorageBackend` connect `StorageBackend` to `core/__init__.py`, `TemporaryUpload`, `TransferService`, `security.py`, `CoreSecurityPipeline`, `test_core_storage.py`, `_Scanner`, `service.py`, `CoreTransferService`, `DropService`, `ContentProcessor`, `ObjectId`, `.object_size`, `TemporaryUploadId`, `LocalFilesystemStorage`?**
-  _High betweenness centrality (0.049) - this node is a cross-community bridge._
-- **Why does `LocalFilesystemStorage` connect `LocalFilesystemStorage` to `test_core_services.py`, `core/__init__.py`, `runtime.py`, `StorageBackend`, `CoreSecurityPipeline`, `test_core_storage.py`, `service.py`, `DropServiceTests`, `ContentProcessor`, `test_processors.py`, `ObjectId`, `CoreTransferService`, `TemporaryUploadId`?**
-  _High betweenness centrality (0.044) - this node is a cross-community bridge._
+- **Why does `ObjectId` connect `ObjectId` to `StorageBackend`, `runtime.py`, `processors/__init__.py`, `security.py`, `CoreSecurityPipeline`, `Path`, `CoreTransferServiceTests`, `core/__init__.py`, `DropRepository`, `ContentProcessor`, `_Scanner`, `service.py`, `DropItem`, `LocalFilesystemStorageTests`, `CoreTransferService`, `TemporaryUploadId`?**
+  _High betweenness centrality (0.107) - this node is a cross-community bridge._
+- **Why does `LocalFilesystemStorage` connect `ObjectId` to `test_core_services.py`, `StorageBackend`, `runtime.py`, `PasswordDigest`, `processors/__init__.py`, `CoreSecurityPipeline`, `CoreTransferServiceTests`, `test_drop.py`, `core/__init__.py`, `CoreLifecycleService`, `ContentProcessor`, `LocalFilesystemStorageTests`, `CoreTransferService`, `TemporaryUploadId`?**
+  _High betweenness centrality (0.048) - this node is a cross-community bridge._
+- **Why does `StorageBackend` connect `StorageBackend` to `processors/__init__.py`, `security.py`, `CoreSecurityPipeline`, `core/__init__.py`, `CoreLifecycleService`, `DropService`, `ContentProcessor`, `_Scanner`, `service.py`, `CoreTransferService`, `TemporaryUploadId`, `ObjectId`?**
+  _High betweenness centrality (0.043) - this node is a cross-community bridge._
 - **Are the 20 inferred relationships involving `ObjectId` (e.g. with `_metadata_object_id()` and `_object_download_response()`) actually correct?**
   _`ObjectId` has 20 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 10 inferred relationships involving `StorageBackend` (e.g. with `CoreLifecycleService` and `LifecycleService`) actually correct?**
   _`StorageBackend` has 10 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 9 inferred relationships involving `LocalFilesystemStorage` (e.g. with `current_security_pipeline()` and `current_transfer_service()`) actually correct?**
   _`LocalFilesystemStorage` has 9 INFERRED edges - model-reasoned connections that need verification._
-- **Are the 10 inferred relationships involving `DropService` (e.g. with `LifecycleItem` and `LifecycleService`) actually correct?**
-  _`DropService` has 10 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 12 inferred relationships involving `DropService` (e.g. with `_drop_upload_response()` and `DeploymentProfile`) actually correct?**
+  _`DropService` has 12 INFERRED edges - model-reasoned connections that need verification._

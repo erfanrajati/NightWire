@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08101c"><meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'self'">
+  <title>NightWire Text</title>
+  <link rel="stylesheet" href="/library/assets/shell.css?v=1.0.2">
+  <link rel="stylesheet" href="/library/assets/text-editor.css?v=1.0.2">
+</head>
+<body class="text-editor-body">
+  <main class="text-editor-shell">
+    <header class="text-editor-header">
+      <a id="backLink" class="text-back-link" href="/library">← Library</a>
+      <div class="text-title-field"><label for="textTitle">Title</label><input id="textTitle" maxlength="255" autocomplete="off" required></div>
+      <div class="text-save-group"><span id="saveStatus" role="status">Loading…</span><button id="saveTextButton" class="primary-button" type="button">Save</button></div>
+    </header>
+    <section class="text-toolbar" aria-label="Text tools">
+      <label>Mode<select id="textMode"><option value="plain">Plain text</option><option value="markdown">Markdown</option><option value="code">Source code</option></select></label>
+      <label id="languageField" hidden>Language<select id="textLanguage"><option value="">Auto-detect</option><option>javascript</option><option>typescript</option><option>python</option><option>html</option><option>css</option><option>sql</option><option>shell</option><option>json</option><option>yaml</option><option>markdown</option><option>plain</option></select></label>
+      <span id="detectedLanguage" class="detected-language" hidden></span>
+      <div class="text-view-tabs" role="group" aria-label="Editor view"><button id="sourceTab" class="active" type="button">Source</button><button id="previewTab" type="button">Preview</button></div>
+      <label class="text-find">Find<input id="findText" type="search" autocomplete="off"><button id="findNextButton" type="button">Next</button></label>
+      <button id="copyTextButton" class="secondary-button" type="button">Copy</button>
+    </section>
+    <p id="textError" class="text-editor-error" role="alert" hidden></p>
+    <section class="text-workspace">
+      <div id="sourcePane" class="text-source-pane"><div id="lineNumbers" class="text-editor-lines" aria-hidden="true"></div><textarea id="textContent" maxlength="1048576" spellcheck="false" aria-label="Text content"></textarea></div>
+      <article id="previewPane" class="text-preview-pane" aria-label="Rendered preview" hidden></article>
+    </section>
+    <footer class="text-editor-footer"><span id="textStats">0 characters · 1 line</span><span>Community Text · no conversion or remote embeds</span></footer>
+  </main>
+  <script type="module" src="/library/assets/text-editor.js?v=1.0.2"></script>
+</body>
+</html>

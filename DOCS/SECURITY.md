@@ -18,7 +18,21 @@ A device that can reach the NightWire port can generally:
 - download or delete unprotected items;
 - attempt to unlock or delete protected items.
 
-Password protection limits content access through NightWire, but it does not turn an untrusted LAN into a fully isolated multi-user system.
+Access Keys limit new Drop downloads, and optional passwords add a second check. They do not turn an untrusted network into a fully isolated multi-user system.
+
+## Drop Access Keys
+
+Every new Drop receives a 256-bit random URL-safe bearer key. The raw key is returned once in the complete `/drop/{filename}?key=...` share URL. NightWire persists only a randomly salted, domain-separated SHA-256 verifier and uses constant-time comparison during validation.
+
+The complete URL grants access until the Drop expires or is deleted. Treat it like a secret: it can appear in browser history, copied messages, proxy logs, or screenshots. NightWire sends `Referrer-Policy: no-referrer`, disables its Uvicorn access log, and does not persist the raw key in server metadata or browser storage.
+
+Access Key validation protects recipient metadata and downloads. The existing manager list, countdown update, and deletion surfaces remain installation-level controls rather than per-user authorization.
+
+On explicitly trusted/private deployments, `NIGHTWIRE_TRUSTED_RELAX_ACCESS_KEYS=true` permits keyless recipient metadata and downloads. This intentionally reduces authorization: anyone who can reach the service and determine a logical Drop name can access it. A raw key is still issued for share-link compatibility. Internet-facing policy ignores this relaxation and always enforces keys.
+
+Active-Drop discovery is configured by `NIGHTWIRE_TRUSTED_ACTIVE_DROP_BROWSING`, but becomes effective only alongside trusted key relaxation. This guarantees that every visible active row has a durable, actionable keyless link and download. The active `/api/drops` API and compatibility file listing return `403` otherwise. Internet-facing installations cannot enable either relaxation through configuration.
+
+Share QR codes contain the exact bearer share URL. They are another representation of the credential, not device pairing or approval. Protect screenshots and printed codes like the copied URL.
 
 ## Password protection
 
@@ -61,14 +75,14 @@ Use a trusted network. When traffic confidentiality is required, place NightWire
 
 ## Retention controls
 
-Any connected client may change an item's countdown without its password. This includes extending retention or setting it to unlimited.
+Any connected client may change an item's countdown without its password. A new Drop must retain a positive expiry and cannot exceed its deployment-profile limit.
 
 Therefore:
 
 - auto-delete is not an access-control mechanism;
 - a password does not protect the countdown setting;
 - users should manually delete sensitive content when finished;
-- operators should not assume a short initial countdown cannot be extended.
+- operators should not assume a short initial countdown cannot be extended within the configured limit.
 
 Protected deletion still requires the password.
 
@@ -84,6 +98,7 @@ NightWire implements several file-safety measures:
 - SHA-256 is calculated during streaming and persisted as integrity metadata;
 - MIME is detected from stored signatures/content rather than trusted from the browser;
 - extension, browser-declared MIME, and detected MIME disagreements produce a persisted `suspicious` verdict;
+- configured scanners run after finalization and persist their identity, engine version, signature-set metadata, findings, and inspection time;
 - per-object security results are stored under `.nightwire-object-metadata/` and mirrored into logical file metadata;
 - incomplete temporary uploads are removed after client disconnects or errors;
 - inactive temporary uploads older than 24 hours are reclaimed unless the transfer service still marks them active;
@@ -92,7 +107,9 @@ NightWire implements several file-safety measures:
 
 An unprotected existing file may be replaced by a new upload with the same name. Treat shared filenames as mutable unless they are protected.
 
-Security verdicts are evidence, not enforcement. The normalized model supports `clean`, `suspicious`, `malicious`, `scan_failed`, and `unscanned`, but NightWire does not ship a malware scanner or block transfers based on verdicts yet. The scanner adapter is an integration boundary, not a claim that content has been scanned.
+The normalized model supports `clean`, `suspicious`, `malicious`, `scan_failed`, and `unscanned`. Scanner absence remains `unscanned`, and scanner errors become `scan_failed`; neither is reported as clean. NightWire does not ship a scanner, but a configured `MalwareScannerAdapter` is invoked for every finalized Drop object.
+
+Security enforcement lives in Core policy. All verdicts may remain in opaque storage. Every non-clean state is visibly warned in manager and recipient views. A malicious object cannot enter a risky processor, is never previewed automatically, and can be downloaded only after the recipient deliberately holds the confirmation control; the server independently requires that confirmation. A malicious verdict alone never deletes or rejects the stored bytes.
 
 Security-sensitive content processors must use the sandbox-execution abstraction rather than assuming access to host paths or subprocesses. Sandbox requests use logical object IDs, basename-only input labels, positive resource limits, and no network access by default. The built-in executor is deny-only; no sandboxed program execution is currently enabled.
 
@@ -103,6 +120,16 @@ Security-sensitive content processors must use the sandbox-execution abstraction
 - Clipboard IDs are random UUID-derived values, but they are identifiers rather than secrets.
 - Restarting NightWire clears all clipboard entries.
 - Clipboard text already viewed by a client cannot be revoked from that client.
+
+## Community Library identity
+
+Library account passwords use salted scrypt hashes; plaintext passwords are never persisted. Session and invitation bearer tokens are generated from cryptographic randomness and only SHA-256 token digests are stored. Session cookies are HttpOnly and SameSite=Strict, and become Secure automatically under the `internet-facing` deployment profile.
+
+The internet-facing registration default is `administrator-approved`; trusted-private defaults to `open`. The first account bootstraps the administrator role. Invitation-only codes are bound to a normalized email, expire after seven days, and can be used once. Logging out revokes the server-side session, so retaining an old cookie does not restore access.
+
+Library cookies do not gate or grant access to Drop. Drop remains an anonymous, access-key-oriented feature with its own protection boundary.
+
+Deploy internet-facing Library installations behind HTTPS. A Secure cookie will not be returned over plain HTTP.
 
 ## HTTP response headers
 

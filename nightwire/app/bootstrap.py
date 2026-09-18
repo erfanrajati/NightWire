@@ -73,6 +73,8 @@ def build_application(
     application.state.registered_modules = tuple(registry.registered_modules)
     application.state.startup_hooks = tuple(registry.startup_hooks)
     application.state.shutdown_hooks = tuple(registry.shutdown_hooks)
+    for name, value in registry.state.items():
+        setattr(application.state, name, value)
     return application
 
 

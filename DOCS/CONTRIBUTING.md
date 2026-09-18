@@ -67,6 +67,7 @@ The root `app.py` is a compatibility alias and executable launcher for `nightwir
 - keep `drop`, `library`, and `text` from importing one another's internal implementation modules; use Core or an explicitly public package API;
 - maintain no-store and security headers;
 - avoid putting passwords or sensitive plaintext in URLs or logs;
+- never persist raw Drop Access Keys; use the Drop access policy and keep complete bearer URLs out of logs;
 - preserve creation-only, immutable password protection unless a reviewed security redesign replaces it;
 - remember that countdown changes are intentionally public to LAN clients in the current model.
 
@@ -114,6 +115,7 @@ Validate JavaScript when Node.js is available:
 ```bash
 node --check static/app.js
 node --check static/drop.js
+node --check static/drop-share.js
 ```
 
 Validate shell scripts:
@@ -144,7 +146,9 @@ At minimum, test these workflows in a real browser:
 ### Files
 
 - upload one and multiple files;
-- upload with unlimited and timed retention;
+- upload with the default and selected Drop lifetimes;
+- enforce the internet-facing 24-hour Drop maximum;
+- validate missing, wrong, and correct Access Keys through a complete share URL;
 - upload with and without a password;
 - confirm protected files cannot be overwritten;
 - download and delete protected and unprotected files;

@@ -96,9 +96,13 @@ Check:
 - the host clock is correct;
 - the item countdown was not changed by another connected client;
 - the process account can delete from the files directory;
-- the item did not have its retention changed to unlimited.
+- the item's countdown was not extended before it elapsed.
 
 The cleanup worker runs approximately once per second, so a small delay is normal.
+
+## A Drop share link was lost
+
+NightWire stores only a salted verifier for each Access Key, so it cannot reconstruct a lost complete share URL. If the uploader page has been refreshed or closed, delete and upload the Drop again to issue a new key.
 
 ## A password was forgotten
 

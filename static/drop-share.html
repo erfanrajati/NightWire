@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'self'">
+  <title>NightWire Drop</title>
+  <link rel="stylesheet" href="/static/styles.css?v=1.0.2">
+</head>
+<body class="share-page-body">
+  <main class="share-page">
+    <a class="share-brand" href="/files" aria-label="NightWire home">NightWire</a>
+    <section class="share-card" aria-labelledby="dropTitle">
+      <figure id="dropImageFrame" class="drop-image-frame hidden">
+        <img id="dropImagePreview" alt="Shared image preview">
+      </figure>
+      <p class="eyebrow">PRIVATE DROP</p>
+      <h1 id="dropTitle">Opening Drop…</h1>
+      <p id="dropStatus" class="share-status" role="status">Validating the Access Key.</p>
+      <p id="dropSecurityWarning" class="security-warning hidden" role="alert"></p>
+      <dl id="dropDetails" class="share-details hidden">
+        <div><dt>Size</dt><dd id="dropSize">—</dd></div>
+        <div><dt>Created</dt><dd id="dropCreated">—</dd></div>
+        <div><dt>Expires</dt><dd id="dropExpires">—</dd></div>
+        <div><dt>Security</dt><dd id="dropSecurity">—</dd></div>
+      </dl>
+      <article id="dropTextPreview" class="drop-text-preview text-read-only-view hidden" aria-label="Read-only shared Text"></article>
+      <button id="copyDropTextButton" class="secondary-button hidden" type="button">Copy shared text</button>
+      <section id="dropAudioPlayer" class="drop-audio-player hidden" aria-label="Voice message player">
+        <audio id="dropAudio" preload="metadata" playsinline></audio>
+        <button id="audioPlayButton" class="audio-play-button" type="button" aria-label="Play voice message">
+          <span class="audio-play-icon" aria-hidden="true"></span>
+        </button>
+        <div class="audio-timeline">
+          <input id="audioSeek" type="range" min="0" max="1000" value="0" aria-label="Voice message position">
+          <div><span id="audioCurrentTime">0:00</span><span id="audioDuration">0:00</span></div>
+        </div>
+      </section>
+      <form id="downloadForm" class="share-download hidden">
+        <label id="sharePasswordWrap" class="form-field hidden">
+          <span>Drop password</span>
+          <input id="sharePassword" type="password" maxlength="256" autocomplete="current-password">
+        </label>
+        <button id="downloadDropButton" class="primary-button" type="submit">Download Drop</button>
+      </form>
+      <p id="shareFootnote" class="share-footnote">The Access Key in this URL remains valid only until the Drop expires or is deleted.</p>
+    </section>
+  </main>
+  <script type="module" src="/static/drop-share.js?v=1.0.2"></script>
+</body>
+</html>

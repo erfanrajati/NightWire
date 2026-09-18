@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from nightwire.drop.access import DropAccessKeyPolicy
+from nightwire.drop.domain import AccessKeyDigest
+
 
 def __getattr__(name: str):
     if name == "DropModule":
@@ -11,4 +14,4 @@ def __getattr__(name: str):
     raise AttributeError(name)
 
 
-__all__ = ["DropModule"]
+__all__ = ["AccessKeyDigest", "DropAccessKeyPolicy", "DropModule"]

@@ -111,6 +111,9 @@ class ClipboardTests(unittest.TestCase):
         created = app.datetime.fromisoformat(entry["created_at"])
         expires = app.datetime.fromisoformat(entry["expires_at"])
         self.assertAlmostEqual((expires - created).total_seconds(), 10 * 60, delta=1)
+        self.assertEqual((entry["text_object_id"], entry["mode"], entry["lifecycle"]),
+                         (entry["id"], "plain", "temporary"))
+        self.assertEqual(app._CLIPBOARD_ENTRIES[0]["text_object"]["content"], "temporary")
 
     def test_protected_clipboard_text_is_withheld_and_unlockable(self):
         revision, protected = add_clipboard_entry(
@@ -169,9 +172,9 @@ class FileLifecycleTests(unittest.TestCase):
         app._FILE_METADATA.update(self.old_metadata)
         self.temp.cleanup()
 
-    def test_file_defaults_to_unlimited_and_unprotected(self):
+    def test_legacy_file_remains_unlimited_while_new_drops_default_to_one_hour(self):
         record = human_file_record(self.file_path)
-        self.assertEqual(FILE_DEFAULT_EXPIRY_SECONDS, 0)
+        self.assertEqual(FILE_DEFAULT_EXPIRY_SECONDS, 3600)
         self.assertIsNone(record["expires_at"])
         self.assertFalse(record["password_protected"])
 

@@ -1,6 +1,7 @@
 import asyncio
 import os
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -11,12 +12,17 @@ from nightwire.core.capacity import (
     CapacityPolicy,
     CapacityRequest,
     CapacitySnapshot,
+    CapacityExceededError,
+    CommunityCapacityManager,
+    UsageScope,
 )
 from nightwire.core.lifecycle import CoreLifecycleService, LifecycleItem, LifecycleService
 from nightwire.core.security import (
     CoreSecurityPipeline,
+    CoreSecurityPolicy,
     MalwareScanResult,
     MalwareScannerAdapter,
+    SecurityAction,
     SecurityPipeline,
     SecurityVerdict,
     compare_mime_evidence,
@@ -101,6 +107,40 @@ class CapacityPolicyTests(unittest.TestCase):
         self.assertTrue(decision.allowed)
         self.assertEqual(decision.remaining_bytes, 0)
 
+    def test_each_community_limit_and_host_reserve_can_deny_independently(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            usage = {"installation": 7, "personal": 7, "workspace": 7, "drop": 7}
+            for field, scope, expected in [
+                ("installation_limit", UsageScope("personal", "u"), "Installation"),
+                ("personal_limit", UsageScope("personal", "u"), "Personal"),
+                ("workspace_limit", UsageScope("workspace", "w"), "Workspace"),
+                ("drop_limit", UsageScope("drop"), "Drop"),
+                ("object_limit", UsageScope("personal", "u"), "Maximum object"),
+            ]:
+                manager = CommunityCapacityManager(Path(temporary), **{field: 10})
+                manager.add_usage_source(lambda candidate, values=usage: values.get(candidate.kind, 0))
+                with self.assertRaisesRegex(CapacityExceededError, expected):
+                    manager.reserve(scope, 4 if field != "object_limit" else 11)
+            disk = mock.Mock(total=100, used=20, free=80)
+            with mock.patch("nightwire.core.capacity.shutil.disk_usage", return_value=disk):
+                manager = CommunityCapacityManager(Path(temporary), minimum_free=75)
+                with self.assertRaisesRegex(CapacityExceededError, "free-space reserve"):
+                    manager.reserve(UsageScope("drop"), 6)
+
+    def test_parallel_reservations_cannot_bypass_scope_quota(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            manager = CommunityCapacityManager(Path(temporary), personal_limit=10)
+            barrier, results = threading.Barrier(2), []
+            def reserve():
+                barrier.wait()
+                try:
+                    manager.reserve(UsageScope("personal", "same-user"), 6); results.append("allowed")
+                except CapacityExceededError:
+                    results.append("denied")
+            threads = [threading.Thread(target=reserve) for _ in range(2)]
+            [thread.start() for thread in threads]; [thread.join() for thread in threads]
+            self.assertEqual(sorted(results), ["allowed", "denied"])
+
 
 class _Scanner(MalwareScannerAdapter):
     def __init__(self, verdict=SecurityVerdict.CLEAN, *, raises=False):
@@ -110,6 +150,14 @@ class _Scanner(MalwareScannerAdapter):
     @property
     def name(self):
         return "test-scanner"
+
+    @property
+    def version(self):
+        return "4.2.0"
+
+    @property
+    def signature_metadata(self):
+        return {"database": "test-definitions", "version": "2026.09.14"}
 
     async def scan(self, object_id, storage, detected_mime):
         if self.raises:
@@ -153,6 +201,14 @@ class CoreSecurityTests(unittest.TestCase):
         self.assertEqual(comparison.declared_mime, "image/jpeg")
         self.assertEqual(comparison.mismatches, ("filename_extension", "declared_mime"))
 
+    def test_safari_media_recorder_m4a_signature_is_detected_as_audio(self):
+        detection = detect_mime_signature(
+            b"\x00\x00\x00\x18ftypM4A \x00\x00\x00\x00M4A isom" + b"audio payload"
+        )
+
+        self.assertEqual(detection.mime_type, "audio/mp4")
+        self.assertEqual(detection.basis, "iso-base-media-audio-signature")
+
     def test_pipeline_persists_unscanned_and_suspicious_object_result(self):
         object_id = self.store(b"%PDF-1.7\ncontent")
 
@@ -185,14 +241,67 @@ class CoreSecurityTests(unittest.TestCase):
 
         self.assertEqual(clean.verdict, SecurityVerdict.CLEAN)
         self.assertEqual(failed.verdict, SecurityVerdict.SCAN_FAILED)
+        persisted = self.storage.load_object_metadata(object_id)["security"]
+        self.assertEqual(persisted["scanner"], "test-scanner")
+        self.assertEqual(persisted["scanner_version"], "4.2.0")
+        self.assertEqual(persisted["signature_metadata"]["version"], "2026.09.14")
+
+    def test_pipeline_preserves_all_five_security_states(self):
+        cases = (
+            (None, SecurityVerdict.UNSCANNED),
+            (_Scanner(SecurityVerdict.CLEAN), SecurityVerdict.CLEAN),
+            (_Scanner(SecurityVerdict.SUSPICIOUS), SecurityVerdict.SUSPICIOUS),
+            (_Scanner(SecurityVerdict.MALICIOUS), SecurityVerdict.MALICIOUS),
+            (_Scanner(raises=True), SecurityVerdict.SCAN_FAILED),
+        )
+        for index, (scanner, expected) in enumerate(cases):
+            with self.subTest(verdict=expected):
+                object_id = self.store(f"plain text {index}".encode())
+                result = self.inspect(
+                    CoreSecurityPipeline(self.storage, scanner),
+                    object_id,
+                    filename="note.txt",
+                    declared_mime="text/plain",
+                )
+                self.assertEqual(result.verdict, expected)
+                self.assertEqual(
+                    self.storage.load_object_metadata(object_id)["security"]["verdict"],
+                    expected.value,
+                )
+
+    def test_central_policy_retains_malicious_bytes_but_gates_actions(self):
+        policy = CoreSecurityPolicy()
+        for verdict in SecurityVerdict:
+            with self.subTest(verdict=verdict):
+                self.assertTrue(policy.evaluate(verdict, SecurityAction.OPAQUE_STORAGE).allowed)
+                download = policy.evaluate(verdict, SecurityAction.DOWNLOAD)
+                processing = policy.evaluate(verdict, SecurityAction.RISKY_PROCESSING)
+                self.assertEqual(download.allowed, verdict is not SecurityVerdict.MALICIOUS)
+                self.assertEqual(processing.allowed, verdict is not SecurityVerdict.MALICIOUS)
+        self.assertTrue(
+            policy.evaluate(
+                SecurityVerdict.MALICIOUS,
+                SecurityAction.DOWNLOAD,
+                confirmed=True,
+            ).allowed
+        )
+        self.assertTrue(
+            policy.evaluate(
+                SecurityVerdict.MALICIOUS,
+                SecurityAction.RISKY_PROCESSING,
+                risky=False,
+            ).allowed
+        )
 
 
 class _Processor(ContentProcessor):
-    def __init__(self, name, mime="text/plain", *, version="1", raises=False):
+    def __init__(self, name, mime="text/plain", *, version="1", raises=False, risky=True):
         self._name = name
         self._version = version
         self.mime = mime
         self.raises = raises
+        self._risky = risky
+        self.calls = 0
 
     @property
     def name(self):
@@ -202,10 +311,15 @@ class _Processor(ContentProcessor):
     def version(self):
         return self._version
 
+    @property
+    def is_risky(self):
+        return self._risky
+
     def supports(self, context):
         return context.detected_mime == self.mime
 
     async def process(self, context):
+        self.calls += 1
         if self.raises:
             raise RuntimeError("processor failed")
         return ProcessorExecutionResult.success(
@@ -235,6 +349,30 @@ class ProcessorRegistryTests(unittest.TestCase):
         self.assertEqual(results[1].error, "RuntimeError")
         with self.assertRaisesRegex(ValueError, "already registered"):
             registry.register(_Processor("metadata"))
+
+    def test_malicious_objects_never_enter_risky_processors(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            storage = LocalFilesystemStorage(temporary)
+            upload_id = storage.allocate_temporary_upload()
+            storage.temporary_upload_reference(upload_id).write_bytes(b"malicious")
+            stored = storage.finalize_temporary_upload(upload_id)
+            context = ProcessorContext(
+                stored.object_id,
+                storage,
+                "payload.txt",
+                "text/plain",
+                stored.size,
+                security_verdict=SecurityVerdict.MALICIOUS,
+            )
+            risky = _Processor("extract")
+            safe = _Processor("opaque-index", risky=False)
+            results = asyncio.run(ProcessorRegistry([risky, safe]).process(context))
+
+        self.assertEqual(risky.calls, 0)
+        self.assertEqual(safe.calls, 1)
+        self.assertEqual(results[0].status.value, "skipped")
+        self.assertIn("blocked", results[0].error.lower())
+        self.assertTrue(results[1].succeeded)
 
 
 if __name__ == "__main__":

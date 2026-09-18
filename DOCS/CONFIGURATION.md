@@ -12,6 +12,20 @@ NightWire is configured primarily through environment variables and launcher arg
 | `NIGHTWIRE_DROP_ENABLED` | `true` | `nightwire.core.config` | Declares whether the Drop module is installed/enabled. |
 | `NIGHTWIRE_LIBRARY_ENABLED` | `true` | `nightwire.core.config` | Declares whether the Library module is installed/enabled. |
 | `NIGHTWIRE_DEPLOYMENT_PROFILE` | `trusted-private` | `nightwire.core.config` | Declares the installation trust boundary. |
+| `NIGHTWIRE_DATABASE_URL` | `sqlite:///<project>/data/nightwire-library.db` | Library persistence | Database URL for Library identities, invitations, and sessions. This build includes the SQLite adapter. |
+| `NIGHTWIRE_LIBRARY_REGISTRATION_POLICY` | profile-dependent | Library authentication | `open`, `invitation-only`, or `administrator-approved`. Defaults to `open` for trusted-private and `administrator-approved` for internet-facing. |
+| `NIGHTWIRE_LIBRARY_SESSION_TTL_SECONDS` | `2592000` | Library authentication | Persistent session lifetime in seconds. |
+| `NIGHTWIRE_LIBRARY_PASSWORD_MIN_CHARACTERS` | `12` | Library authentication | Minimum account-password length. |
+| `NIGHTWIRE_LIBRARY_TRASH_RETENTION_SECONDS` | `2592000` | Library Trash | Positive retention period before deleted personal or Workspace items are permanently purged. |
+| `NIGHTWIRE_LIBRARY_VERSION_RETENTION` | `100` | Library versions | Maximum unpinned versions retained per logical file. Versions referenced by derived-output provenance remain pinned until that output is removed. |
+| `NIGHTWIRE_INSTALLATION_MAX_BYTES` | `0` | Core capacity | Maximum physical bytes across opaque Core objects; `0` is unlimited. |
+| `NIGHTWIRE_PERSONAL_LIBRARY_QUOTA_BYTES` | `0` | Library capacity | Per-user logical Personal Library quota; `0` is unlimited. |
+| `NIGHTWIRE_WORKSPACE_QUOTA_BYTES` | `0` | Workspace capacity | Per-Workspace logical quota shared by all members; `0` is unlimited. |
+| `NIGHTWIRE_DROP_QUOTA_BYTES` | `0` | Drop capacity | Installation-wide active Drop logical quota; `0` is unlimited. |
+| `NIGHTWIRE_MAXIMUM_OBJECT_BYTES` | `0` | Core transfer | Maximum size of any newly uploaded or physically duplicated object; `0` is unlimited. |
+| `NIGHTWIRE_MINIMUM_HOST_FREE_BYTES` | `0` | Core storage | Free filesystem bytes that uploads must leave reserved for the host; `0` disables the reserve. |
+| `NIGHTWIRE_TRUSTED_RELAX_ACCESS_KEYS` | `false` | Drop policy | Allows keyless Drop recipient access only under `trusted-private`; ignored for `internet-facing`. |
+| `NIGHTWIRE_TRUSTED_ACTIVE_DROP_BROWSING` | `true` | Drop policy | Enables active-Drop listing only under `trusted-private`; ignored for `internet-facing`. |
 
 Examples:
 
@@ -37,7 +51,9 @@ Drop and Library are independently configurable. Accepted enabled values are `1`
 NIGHTWIRE_DROP_ENABLED=false NIGHTWIRE_LIBRARY_ENABLED=true ./run.sh
 ```
 
-Both modules default to enabled, preserving v1.0.2 behavior. At bootstrap, only enabled modules receive the opportunity to register routes and lifecycle hooks. Drop currently owns the complete legacy route surface, static mount, and cleanup hooks, so disabling Drop leaves the Starlette application with no registered routes. Library participates independently in registration but does not contribute functionality yet.
+Both modules default to enabled. At bootstrap, only enabled modules receive the opportunity to register routes and lifecycle hooks. Drop owns the anonymous transfer routes; Library independently owns its authenticated pages, APIs, database migrations, and identity lifecycle.
+
+The first Library account is always activated as an administrator so a fresh installation can be initialized. Every later registration follows the configured policy. Invitation codes are email-bound, single-use, and expire after seven days. Administrator-approved accounts cannot authenticate until approved.
 
 ## Deployment profiles
 
@@ -48,7 +64,24 @@ Both modules default to enabled, preserving v1.0.2 behavior. At bootstrap, only 
 | `trusted-private` | A trusted home, studio, lab, or office network. This is the default. |
 | `internet-facing` | An installation intended to sit behind internet-facing security controls. |
 
-`trusted`, `private`, and `trusted/private` are accepted aliases for `trusted-private`; `internet` is an alias for `internet-facing`. The profile is currently descriptive and is returned by `/api/info`. Selecting `internet-facing` does not itself add TLS, authentication, proxy configuration, or firewall rules.
+`trusted`, `private`, and `trusted/private` are accepted aliases for `trusted-private`; `internet` is an alias for `internet-facing`. The profile is returned by `/api/info` and enforces a hard 24-hour maximum for anonymous Drops. Selecting `internet-facing` does not itself add TLS, user accounts, proxy configuration, or firewall rules.
+
+For the complete trusted-network experience—persistent active entries, reopenable QR/access links, and manager downloads without browser-held keys—enable both trusted switches:
+
+```bash
+NIGHTWIRE_DEPLOYMENT_PROFILE=trusted-private \
+NIGHTWIRE_TRUSTED_RELAX_ACCESS_KEYS=true \
+NIGHTWIRE_TRUSTED_ACTIVE_DROP_BROWSING=true \
+uv run --locked python app.py
+```
+
+Run the internet-facing profile with:
+
+```bash
+NIGHTWIRE_DEPLOYMENT_PROFILE=internet-facing uv run --locked python app.py
+```
+
+The active directory is effective only when trusted key relaxation and active browsing are both enabled: raw Access Keys are intentionally non-recoverable, so an active row could not otherwise reconstruct its link. Internet-facing policy always requires Access Keys and always denies active-Drop browsing, regardless of the trusted flags. Relaxing keys means anyone who can reach the trusted NightWire service and knows a Drop name can open it.
 
 ## Installed launcher
 
@@ -121,6 +154,7 @@ The installer preserves these top-level paths in the installed application:
 
 ```text
 files/
+data/
 .venv/
 .env
 .env.*
@@ -128,7 +162,7 @@ files/
 
 The recursive updater also preserves `.git/`.
 
-Because metadata and Core object storage live under `files/`, lifecycle records, checksums, password records, and uploaded content survive normal upgrades.
+Core object storage under `files/` and the default Library database under `data/` survive normal upgrades. A database stored elsewhere through `NIGHTWIRE_DATABASE_URL` must be backed up and preserved by the operator.
 
 Drop metadata is accessed through `LocalDropRepository`. It intentionally retains the existing `.nightwire-metadata.json` representation, so the service migration requires no migration command and does not change the preserved storage location.
 
@@ -171,12 +205,12 @@ When adding a proxy, preserve request bodies for streamed uploads and set approp
 
 ## Storage planning
 
-NightWire has no configured file quota. Monitor the filesystem containing `NIGHTWIRE_FILES_DIR`.
+All byte limits are self-host administrator controls, not hosted-service pricing tiers. Personal and Workspace quota usage is logical: each distinct Core object counts once per logical file, including its retained versions and derived results. Installation usage is physical and counts each opaque Core object once. Drop usage counts each active Drop's stored size. Trash continues to count until permanent deletion; upload reservations count immediately and are serialized so concurrent uploads cannot bypass a limit.
 
 - Uploads require enough free space for the temporary object. Finalization is an atomic rename within the same storage root and normally does not duplicate content bytes.
 - File metadata is small and stored in the same directory.
 - Inactive temporary uploads older than 24 hours are treated as orphans and removed by the lifecycle worker; active transfer IDs are excluded.
-- Core capacity/quota interfaces exist, but the current compatibility policy does not enforce Drop or Library quotas.
+- Core quota reservations include parallel in-progress uploads and are released on every success or abort path.
 - Clipboard data consumes process memory only and is bounded to 40 entries of at most 32,768 characters each.
 
 ## Fixed application limits
@@ -190,5 +224,7 @@ These limits are centralized in `nightwire/core/config.py` and are not environme
 | Password length | 256 characters |
 | Minimum timed retention | 60 seconds |
 | Maximum timed retention | 365 days |
+| New Drop default lifetime | 1 hour |
+| Anonymous internet-facing Drop maximum | 24 hours |
 | Client inactivity timeout | 18 seconds |
 | Cleanup interval | approximately 1 second |

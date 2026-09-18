@@ -74,6 +74,7 @@ NightWire/
 │   ├── core/storage.py       # Logical object-ID storage contract and local backend
 │   ├── core/transfer.py      # Upload/download streaming, progress, and finalization
 │   ├── drop/
+│   │   ├── access.py         # Access Key generation and digest verification
 │   │   ├── domain.py         # Route-independent Drop entities
 │   │   ├── repository.py     # Metadata contract and local JSON repository
 │   │   ├── service.py        # File use cases composed over Core contracts
@@ -93,6 +94,8 @@ NightWire/
 │   ├── index.html            # Three-page browser shell
 │   ├── app.js                # Shared ES-module application bootstrap
 │   ├── drop.js               # Drop-owned v1.0.2 UI behavior
+│   ├── drop-share.html       # Recipient Drop page
+│   ├── drop-share.js         # Access-Key recipient flow
 │   └── styles.css            # Responsive aurora interface
 ├── files/
 │   └── .gitkeep              # Default shared-file directory placeholder
@@ -122,7 +125,7 @@ Modules implement a small registration contract: a stable `name` plus `register(
 
 Drop is the initial compatibility module and registers every v1.0.2 route, `/static`, and the cleanup worker hooks. Library is independently conditional but currently registers no functionality. Registered module names are exposed as `app.state.registered_modules` for diagnostics and tests.
 
-File route handlers validate transport input, invoke `DropService`, and translate domain exceptions to existing status codes. `DropService` composes the Drop repository with Core storage, transfer, lifecycle, and security contracts. Password creation and verification are injected as configured policy; the upload password header is decoded by application middleware. Clipboard routes pass through `DropClipboardService` pending the Text migration. Client TTL, mutation, sorting, and projection live in `DropClientVisibilityService`.
+File, text, and voice route handlers validate transport input, invoke `DropService`, and translate domain exceptions to status codes. `DropService` composes the Drop repository with Core storage, transfer, lifecycle, and security contracts. `DropItem.content_kind` identifies `file`, `text`, or `voice` without changing the physical transfer path. Password creation and verification are injected as configured policy; the upload password header is decoded by application middleware. Clipboard routes pass through `DropClipboardService` pending the Text migration. Client TTL, mutation, sorting, and projection live in `DropClientVisibilityService`.
 
 ## Browser routing
 
@@ -136,13 +139,15 @@ Static assets are served under `/static` with no-store caching headers.
 
 ## File lifecycle
 
-1. The client sends raw file bytes to `PUT /api/upload?filename=...`.
+1. The client sends raw file or recorded-audio bytes to `PUT /api/drops/files?filename=...`, or text to `POST /api/drops/text`; `/api/upload` remains a compatibility alias.
 2. The server validates the filename and creation settings.
 3. Core allocates an isolated ID under `files/.nightwire-uploads/` and streams the body there while calculating SHA-256.
 4. After the complete body is received and overwrite rules are rechecked, Core atomically promotes the temporary upload into `files/.nightwire-objects/` under a stable opaque object ID.
 5. Core detects MIME from stored bytes, compares extension/declared/detected evidence, optionally invokes a scanner adapter, and persists a normalized security result beside the stored object.
-6. The logical filename, object ID, byte size, checksum, security result, creation time, expiration, and optional password hash are written to `files/.nightwire-metadata.json`.
+6. The logical filename, object ID, byte size, checksum, security result, explicit creation/expiry timestamps, salted Access Key digest, and optional password hash are written to `files/.nightwire-metadata.json`.
 7. The cleanup worker resolves the object ID and removes both expired physical content and metadata.
+
+The raw 256-bit Access Key is returned only in the upload response and complete recipient URL. It is never persisted. Trusted policy may relax validation or allow active browsing; internet-facing policy always requires keys and denies browsing. New Drops default to one hour, accept a selected positive lifetime, and are capped at 24 hours under the `internet-facing` deployment profile. Expiration runs under the Drop lock and removes the credential record, metadata, object security sidecar, and underlying bytes before access can resume.
 
 The metadata file is written to a temporary path and atomically replaced to reduce the risk of partial writes.
 
@@ -152,13 +157,15 @@ Legacy files placed directly into the shared directory remain discoverable and r
 
 Object-backed downloads are prepared and streamed in `CoreTransferService`. Uploads and downloads emit immutable progress events into a bounded, thread-safe latest-state store and optional hooks. Transfer IDs are returned by uploads and in object-download response headers so a future module or frontend endpoint can correlate that state. No progress-listing route is registered yet.
 
-Core defines capacity measurement and policy contracts plus an allow-all compatibility policy. Library does not enforce quotas yet.
+Core owns Community capacity enforcement and a process-wide, thread-safe upload reservation ledger. Drop, Personal Library, and Workspace uploads share installation, object-size, and host-reserve checks while retaining their independent logical quotas. Declared sizes are checked before allocation and every streamed chunk is checked again.
 
 ## Security pipeline
 
 `CoreSecurityPipeline` reads object bytes through the storage interface. Signature/structure detection does not use the filename or browser-declared MIME. It then compares detected MIME with the filename extension and normalized declared MIME.
 
-The verdict vocabulary is `clean`, `suspicious`, `malicious`, `scan_failed`, and `unscanned`. With no scanner configured, consistent content is `unscanned` and mismatched MIME evidence is `suspicious`. `MalwareScannerAdapter` allows a future scanner to inspect an object ID through Core storage without making Core depend on a product-specific executable or API. Results are informational and not an upload/download enforcement gate at this stage.
+The verdict vocabulary is `clean`, `suspicious`, `malicious`, `scan_failed`, and `unscanned`. With no scanner configured, consistent content is `unscanned`; scanner errors remain `scan_failed`; and mismatched MIME evidence is `suspicious`. `MalwareScannerAdapter` lets configured engines inspect an object ID through Core storage without product-specific coupling. Persisted results include scanner engine and signature-set provenance.
+
+`CoreSecurityPolicy` always permits opaque storage, requires explicit confirmation to download a malicious object, and blocks malicious content from risky processors. `ProcessorRegistry` applies that policy before invoking processor support or execution code. The Drop service applies the same policy at both download entry points, while the browser renders every non-clean state and uses a hold gesture for malicious confirmation.
 
 `ProcessorRegistry` provides ordered, unique-name registration for post-storage processors. A `ProcessorIdentity` combines the stable name with an implementation version, and every execution result records that exact identity plus `succeeded`, `failed`, or `skipped` status. Results can include metadata, timing, an error, and zero or more typed `DerivedObject` references for content a future processor stores through Core. One processor failure is isolated from later processors. No processors are registered by default.
 
@@ -199,7 +206,7 @@ Verification uses constant-time digest comparison. Passwords are immutable throu
 
 ## Frontend update model
 
-`static/index.html` loads the shared `static/app.js` ES-module shell, which imports and starts Drop-owned `static/drop.js`. This is an ownership split only; the DOM, route model, polling cadence, and visual design are unchanged.
+`static/index.html` loads the shared `static/app.js` ES-module shell, which imports and starts Drop-owned `static/drop.js`. The primary Secure Drop view removes the legacy dashboard/navigation treatment and presents one composer: a shared lifetime control plus file, pasted-text, and browser-recorded voice choices. It conditionally renders the policy-governed active directory and retains a newly issued key only in page memory. The creation modal provides a copy action and QR encoding the exact complete URL. `/drop/{filename}?key=...` serves `static/drop-share.html`, whose `drop-share.js` validates effective access policy, previews text or audio, displays recipient-safe metadata and expiration, and performs downloads.
 
 The browser uses lightweight polling:
 

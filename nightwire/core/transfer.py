@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from nightwire.core.storage import ObjectId, StorageBackend, TemporaryUploadId
+from nightwire.core.capacity import CommunityCapacityManager, UploadReservation, UsageScope
 
 
 class TransferDirection(StrEnum):
@@ -93,6 +94,7 @@ class PendingUpload:
     bytes_written: int
     checksum_sha256: str
     seconds: float
+    reservation: UploadReservation | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,7 +122,8 @@ class TransferService(ABC):
     """Stream uploads/downloads and finalize content without filesystem paths."""
 
     @abstractmethod
-    async def receive_upload(self, chunks: AsyncIterable[bytes]) -> PendingUpload:
+    async def receive_upload(self, chunks: AsyncIterable[bytes], *, usage_scope: UsageScope | None = None,
+                             expected_bytes: int | None = None, quota_credit: int = 0) -> PendingUpload:
         """Stream chunks into isolated temporary storage and calculate integrity."""
 
     @abstractmethod
@@ -151,6 +154,10 @@ class CoreTransferService(TransferService):
         self._progress_hooks = [self.progress_store.record, *progress_hooks]
         self._active_uploads: set[TemporaryUploadId] = set()
         self._active_lock = threading.RLock()
+        self.capacity: CommunityCapacityManager | None = None
+
+    def set_capacity_manager(self, capacity: CommunityCapacityManager) -> None:
+        self.capacity = capacity
 
     def add_progress_hook(self, hook: ProgressHook) -> None:
         if hook not in self._progress_hooks:
@@ -197,8 +204,12 @@ class CoreTransferService(TransferService):
             except Exception:
                 continue
 
-    async def receive_upload(self, chunks: AsyncIterable[bytes]) -> PendingUpload:
+    async def receive_upload(self, chunks: AsyncIterable[bytes], *, usage_scope: UsageScope | None = None,
+                             expected_bytes: int | None = None, quota_credit: int = 0) -> PendingUpload:
         transfer_id = uuid.uuid4().hex
+        reservation = self.capacity.reserve(
+            usage_scope or UsageScope("installation"), expected_bytes, quota_credit=quota_credit
+        ) if self.capacity else None
         upload_id = self.storage.allocate_temporary_upload()
         with self._active_lock:
             self._active_uploads.add(upload_id)
@@ -211,9 +222,12 @@ class CoreTransferService(TransferService):
                 async for chunk in chunks:
                     if not chunk:
                         continue
+                    prospective = total_written + len(chunk)
+                    if self.capacity and reservation:
+                        self.capacity.consume(reservation, prospective)
                     digest.update(chunk)
                     await output.write(chunk)
-                    total_written += len(chunk)
+                    total_written = prospective
                     self._emit(
                         transfer_id,
                         TransferDirection.UPLOAD,
@@ -236,6 +250,8 @@ class CoreTransferService(TransferService):
                 upload_id=upload_id,
                 error=type(exc).__name__,
             )
+            if self.capacity:
+                self.capacity.release(reservation)
             raise
 
         elapsed = max(time.perf_counter() - started, 0.001)
@@ -253,6 +269,7 @@ class CoreTransferService(TransferService):
             bytes_written=total_written,
             checksum_sha256=digest.hexdigest(),
             seconds=elapsed,
+            reservation=reservation,
         )
 
     def finalize_upload(self, pending: PendingUpload, object_id: ObjectId | None = None) -> CompletedUpload:
@@ -262,6 +279,8 @@ class CoreTransferService(TransferService):
                 self.storage.delete_object(stored.object_id)
                 raise OSError("Finalized object size does not match the streamed upload.")
         except BaseException as exc:
+            if self.capacity:
+                self.capacity.release(pending.reservation)
             self._emit(
                 pending.transfer_id,
                 TransferDirection.UPLOAD,
@@ -296,6 +315,8 @@ class CoreTransferService(TransferService):
         self.storage.discard_temporary_upload(pending.upload_id)
         with self._active_lock:
             self._active_uploads.discard(pending.upload_id)
+        if self.capacity:
+            self.capacity.release(pending.reservation)
         self._emit(
             pending.transfer_id,
             TransferDirection.UPLOAD,
@@ -304,6 +325,11 @@ class CoreTransferService(TransferService):
             pending.bytes_written,
             upload_id=pending.upload_id,
         )
+
+    def complete_upload(self, pending: PendingUpload) -> None:
+        """Release quota reservation after durable logical metadata is committed."""
+        if self.capacity:
+            self.capacity.release(pending.reservation)
 
     def prepare_download(self, object_id: ObjectId, chunk_size: int = 1024 * 1024) -> DownloadTransfer:
         if chunk_size < 1:

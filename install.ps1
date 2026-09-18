@@ -114,7 +114,7 @@ try {
     }
 
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
-    $PreservedNames = @("files", ".venv")
+    $PreservedNames = @("files", "data", ".venv")
     Get-ChildItem -LiteralPath $InstallDir -Force | ForEach-Object {
         $Preserve = $PreservedNames -contains $_.Name -or $_.Name -eq ".env" -or $_.Name -like ".env.*"
         if (-not $Preserve) {
@@ -129,6 +129,7 @@ try {
         Copy-Item -LiteralPath (Join-Path $StageDir $Normalized) -Destination $InstalledPath -Force
     }
     New-Item -ItemType Directory -Path (Join-Path $InstallDir "files") -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $InstallDir "data") -Force | Out-Null
 
     Write-Host "Verifying installed files..."
     foreach ($RelativePath in $Manifest) {

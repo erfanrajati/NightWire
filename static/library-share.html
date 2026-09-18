@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer"><meta name="theme-color" content="#08101c">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self'; script-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'self'; base-uri 'none'; form-action 'self'">
+  <title>NightWire Library Share</title>
+  <link rel="stylesheet" href="/library/assets/shell.css?v=1.0.2">
+</head>
+<body class="share-page-body">
+  <main class="share-page">
+    <a class="share-brand" href="/" aria-label="NightWire home">NightWire</a>
+    <section class="share-card" aria-labelledby="shareTitle">
+      <p class="eyebrow">READ-ONLY LIBRARY SHARE</p>
+      <h1 id="shareTitle">Opening share…</h1>
+      <p id="shareStatus" class="share-status" role="status">Validating this share.</p>
+      <p id="shareSecurityWarning" class="security-warning hidden" role="alert"></p>
+      <dl id="shareDetails" class="share-details hidden">
+        <div><dt>Size</dt><dd id="shareSize">—</dd></div>
+        <div><dt>Shared</dt><dd id="shareCreated">—</dd></div>
+        <div><dt>Expires</dt><dd id="shareExpires">—</dd></div>
+        <div><dt>Security</dt><dd id="shareSecurity">—</dd></div>
+      </dl>
+      <article id="shareTextPreview" class="drop-text-preview text-read-only-view hidden" aria-label="Read-only shared Text"></article>
+      <button id="copyShareTextButton" class="secondary-button hidden" type="button">Copy shared Text</button>
+      <form id="shareDownloadForm" class="share-download hidden">
+        <button id="shareDownloadButton" class="primary-button" type="submit">Download file</button>
+      </form>
+      <p class="share-footnote">This grant is read-only. Its Access Key can be reused until the owner revokes the grant or it expires.</p>
+    </section>
+  </main>
+  <script type="module" src="/library/assets/share-recipient.js?v=1.0.2"></script>
+</body>
+</html>

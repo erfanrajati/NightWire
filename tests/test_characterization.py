@@ -9,7 +9,7 @@ import subprocess
 import tempfile
 import time
 import unittest
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from unittest import mock
 from urllib.parse import quote, unquote, urlsplit
@@ -212,11 +212,16 @@ class FileUploadCharacterizationTests(IsolatedApplicationState):
         self.assertEqual(len(result["transfer_id"]), 32)
         self.assertEqual(result["bytes_written"], len(b"".join(payload)))
         self.assertFalse(result["file"]["password_protected"])
+        self.assertTrue(result["file"]["access_key_required"])
+        self.assertRegex(result["access_key"], r"^[A-Za-z0-9_-]{43}$")
+        self.assertIn(f"/drop/{quote(filename)}?key=", result["share_url"])
         self.assertEqual(len(result["checksum_sha256"]), 64)
 
         metadata = json.loads(app.metadata_path().read_text(encoding="utf-8"))
         self.assertEqual(set(metadata), {filename})
         self.assertIsNone(metadata[filename]["password"])
+        self.assertNotIn(result["access_key"], json.dumps(metadata))
+        self.assertEqual(metadata[filename]["access_key_digest"]["algorithm"], "sha256-v1")
         object_id = app.ObjectId.parse(metadata[filename]["object_id"])
         self.assertEqual(
             app.current_storage_backend().object_reference(object_id).read_bytes(),
@@ -249,7 +254,10 @@ class FileUploadCharacterizationTests(IsolatedApplicationState):
         self.assertEqual(app._FILE_METADATA[filename]["object_id"], original_record["object_id"])
         self.assertEqual(app._FILE_METADATA[filename]["checksum_sha256"], hashlib.sha256(payload).hexdigest())
         self.assertEqual(app._FILE_METADATA[filename]["security"]["verdict"], "unscanned")
-        download = asgi_request("GET", f"/download/{quote(filename)}")
+        access_key = response.json()["access_key"]
+        download = asgi_request(
+            "GET", f"/download/{quote(filename)}?key={quote(access_key)}"
+        )
         self.assertEqual(download.status, 200)
         self.assertEqual(download.body, payload)
         self.assertIn("persistent%20name.bin", download.headers["content-disposition"])
@@ -373,7 +381,13 @@ class LifecycleCharacterizationTests(IsolatedApplicationState):
         }
         app._save_file_metadata_locked()
 
-        response = asgi_request("GET", "/api/files")
+        trusted_manager = replace(
+            app.SETTINGS,
+            trusted_network_relaxed_access=True,
+            trusted_network_active_drop_browsing=True,
+        )
+        with mock.patch.object(app, "SETTINGS", trusted_manager):
+            response = asgi_request("GET", "/api/files")
 
         self.assertEqual(response.status, 200)
         self.assertFalse(expired_path.exists())
@@ -464,20 +478,24 @@ class PasswordProtectionCharacterizationTests(IsolatedApplicationState):
             headers={"x-nightwire-password-b64": encoded},
         )
         self.assertEqual(uploaded.status, 201)
+        access_key = uploaded.json()["access_key"]
         metadata_text = app.metadata_path().read_text(encoding="utf-8")
         self.assertNotIn(password, metadata_text)
         self.assertTrue(app.verify_password(password, app._FILE_METADATA["protected.bin"]["password"]))
 
-        direct = asgi_request("GET", "/download/protected.bin")
+        missing_key = asgi_request("GET", "/download/protected.bin")
+        self.assertEqual(missing_key.status, 403)
+
+        direct = asgi_request("GET", f"/download/protected.bin?key={quote(access_key)}")
         self.assertEqual(direct.status, 401)
 
         wrong_download = json_request(
-            "POST", "/api/files/protected.bin/download", {"password": "wrong"}
+            "POST", f"/api/files/protected.bin/download?key={quote(access_key)}", {"password": "wrong"}
         )
         self.assertEqual(wrong_download.status, 403)
 
         downloaded = json_request(
-            "POST", "/api/files/protected.bin/download", {"password": password}
+            "POST", f"/api/files/protected.bin/download?key={quote(access_key)}", {"password": password}
         )
         self.assertEqual(downloaded.status, 200)
         self.assertEqual(downloaded.body, data)
@@ -615,6 +633,8 @@ class LinuxInstallUpdateSmokeTests(unittest.TestCase):
             (install_dir / "files").mkdir(parents=True)
             (install_dir / "files" / "upload.bin").write_bytes(b"preserve upload")
             (install_dir / "files" / app.FILE_METADATA_FILENAME).write_text('{"upload.bin": {}}\n', encoding="utf-8")
+            (install_dir / "data").mkdir()
+            (install_dir / "data" / "nightwire-library.db").write_bytes(b"preserve library")
             (install_dir / ".venv").mkdir()
             (install_dir / ".venv" / "sentinel").write_text("preserve venv", encoding="utf-8")
             (install_dir / ".env").write_text("PORT=9000\n", encoding="utf-8")
@@ -647,6 +667,10 @@ class LinuxInstallUpdateSmokeTests(unittest.TestCase):
                 (install_dir / "files" / app.FILE_METADATA_FILENAME).read_text(encoding="utf-8"),
                 '{"upload.bin": {}}\n',
             )
+            self.assertEqual(
+                (install_dir / "data" / "nightwire-library.db").read_bytes(),
+                b"preserve library",
+            )
             self.assertEqual((install_dir / ".env").read_text(encoding="utf-8"), "PORT=9000\n")
             self.assertEqual((install_dir / ".env.local").read_text(encoding="utf-8"), "LOCAL=1\n")
             self.assertTrue((install_dir / ".venv" / "sentinel").is_file())
@@ -676,6 +700,8 @@ class LinuxInstallUpdateSmokeTests(unittest.TestCase):
             (target_dir / "files").mkdir()
             (target_dir / "files" / "upload.bin").write_bytes(b"preserve upload")
             (target_dir / "files" / app.FILE_METADATA_FILENAME).write_text('{"upload.bin": {}}\n', encoding="utf-8")
+            (target_dir / "data").mkdir()
+            (target_dir / "data" / "nightwire-library.db").write_bytes(b"preserve library")
             (target_dir / ".venv").mkdir()
             (target_dir / ".venv" / "sentinel").write_text("preserve venv", encoding="utf-8")
             (target_dir / ".git").mkdir()
@@ -701,6 +727,10 @@ class LinuxInstallUpdateSmokeTests(unittest.TestCase):
             self.assertEqual(
                 (target_dir / "files" / app.FILE_METADATA_FILENAME).read_text(encoding="utf-8"),
                 '{"upload.bin": {}}\n',
+            )
+            self.assertEqual(
+                (target_dir / "data" / "nightwire-library.db").read_bytes(),
+                b"preserve library",
             )
             self.assertEqual((target_dir / ".env").read_text(encoding="utf-8"), "PORT=9000\n")
             self.assertEqual((target_dir / ".env.local").read_text(encoding="utf-8"), "LOCAL=1\n")

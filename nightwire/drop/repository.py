@@ -14,7 +14,8 @@ from typing import Any
 
 from nightwire.core.security import SecurityVerdict
 from nightwire.core.storage import ObjectId
-from nightwire.drop.domain import DropItem, PasswordDigest
+from nightwire.drop.domain import AccessKeyDigest, DropItem, PasswordDigest
+from nightwire.text import TextObject
 
 
 class DropRepository(ABC):
@@ -76,6 +77,24 @@ class LocalDropRepository(DropRepository):
             return None
         return PasswordDigest(salt, digest)
 
+    @staticmethod
+    def _access_key_digest(value: object) -> AccessKeyDigest | None:
+        if not isinstance(value, dict):
+            return None
+        algorithm = value.get("algorithm")
+        salt = value.get("salt")
+        digest = value.get("digest")
+        if algorithm != "sha256-v1" or not isinstance(salt, str) or not isinstance(digest, str):
+            return None
+        try:
+            decoded_salt = base64.b64decode(salt, validate=True)
+            decoded_digest = base64.b64decode(digest, validate=True)
+        except (ValueError, TypeError):
+            return None
+        if len(decoded_salt) != 16 or len(decoded_digest) != 32:
+            return None
+        return AccessKeyDigest(algorithm, salt, digest)
+
     @classmethod
     def _item(cls, name: str, raw: object) -> DropItem | None:
         if not isinstance(raw, dict):
@@ -95,15 +114,21 @@ class LocalDropRepository(DropRepository):
             and isinstance(security.get("detected_mime"), str)
         ):
             security = None
+        content_kind = raw.get("content_kind", "file")
+        if content_kind not in {"file", "text", "voice"}:
+            content_kind = "file"
         return DropItem(
             name=name,
             created_at=raw.get("created_at") if isinstance(raw.get("created_at"), str) else None,
             expires_at=raw.get("expires_at") if isinstance(raw.get("expires_at"), str) else None,
+            content_kind=content_kind,
+            access_key_digest=cls._access_key_digest(raw.get("access_key_digest")),
             password=cls._password(raw.get("password")),
             object_id=object_id,
             checksum_sha256=checksum,
             size=size,
             security=dict(security) if security else None,
+            text_object=TextObject.from_record(raw.get("text_object")),
         )
 
     def load(self) -> None:

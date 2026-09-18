@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08101c"><title>NightWire — Trash</title>
+  <link rel="stylesheet" href="/library/assets/shell.css?v=1.0.2">
+  <link rel="stylesheet" href="/library/assets/browser.css?v=1.0.2">
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div><div class="ambient ambient-two" aria-hidden="true"></div>
+  <main class="shell library-browser-shell">
+    <header class="topbar">
+      <a id="backLink" class="brand" href="/library"><div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div><div><p id="scopeLabel" class="eyebrow">MY LIBRARY</p><h1><span>Trash</span></h1></div></a>
+      <div class="account-actions"><span id="currentName"></span><a id="returnLink" href="/library">Back to Library</a><button id="logoutButton" type="button">Sign out</button></div>
+    </header>
+    <section class="panel trash-intro"><div><p class="eyebrow">RECOVERABLE DELETION</p><h2 id="trashTitle">Personal Trash</h2><p id="retentionText">Loading retention policy…</p></div></section>
+    <p id="notice" class="browser-notice" role="status" hidden></p>
+    <section class="browser-panel panel">
+      <div class="browser-heading"><div><p class="eyebrow">DELETED ITEMS</p><h2>Trash</h2></div><span id="itemCount">0 items</span></div>
+      <div class="item-table" role="table" aria-label="Trash items"><div class="item-row item-header" role="row"><span>Name</span><span>Type</span><span>Deleted</span><span></span></div><div id="trashItems"></div></div>
+      <div id="emptyState" class="empty-state" hidden><div aria-hidden="true">◇</div><h3>Trash is empty</h3><p>Deleted files and folders will appear here until retention cleanup.</p></div>
+    </section>
+    <footer><span>Restore returns items to their folder when available.</span><span>Permanent deletion is reference-safe.</span></footer>
+  </main>
+  <script type="module" src="/library/assets/trash.js?v=1.0.2"></script>
+</body>
+</html>

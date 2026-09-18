@@ -47,6 +47,7 @@ class ApplicationRegistry:
     startup_hooks: list[LifecycleHook] = field(default_factory=list)
     shutdown_hooks: list[LifecycleHook] = field(default_factory=list)
     registered_modules: list[str] = field(default_factory=list)
+    state: dict[str, Any] = field(default_factory=dict)
 
     def add_route(
         self,
@@ -66,6 +67,9 @@ class ApplicationRegistry:
 
     def add_shutdown_hook(self, hook: LifecycleHook) -> None:
         self.shutdown_hooks.append(hook)
+
+    def set_state(self, name: str, value: Any) -> None:
+        self.state[name] = value
 
 
 class ApplicationModule(Protocol):

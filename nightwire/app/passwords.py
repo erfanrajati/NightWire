@@ -68,7 +68,7 @@ class PasswordProtection:
             raise PermissionError(message)
 
     async def middleware(self, request: Request, call_next):
-        if request.method != "PUT" or request.url.path != "/api/upload":
+        if request.method != "PUT" or request.url.path not in {"/api/upload", "/api/drops/files"}:
             return await call_next(request)
         try:
             request.state.drop_creation_password = self.decode_creation_header(

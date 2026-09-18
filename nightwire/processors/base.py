@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
+from nightwire.core.security import CoreSecurityPolicy, SecurityAction, SecurityVerdict
 from nightwire.core.storage import ObjectId, StorageBackend
 
 
@@ -154,6 +155,7 @@ class ProcessorContext:
     detected_mime: str
     size: int
     metadata: Mapping[str, Any] = field(default_factory=dict)
+    security_verdict: SecurityVerdict | str | None = SecurityVerdict.UNSCANNED
 
 
 class ContentProcessor(ABC):
@@ -174,6 +176,12 @@ class ContentProcessor(ABC):
     def identity(self) -> ProcessorIdentity:
         return ProcessorIdentity(self.name, self.version)
 
+    @property
+    def is_risky(self) -> bool:
+        """Whether this processor parses or executes content from the object."""
+
+        return True
+
     @abstractmethod
     def supports(self, context: ProcessorContext) -> bool:
         """Return whether this processor accepts the stored content."""
@@ -184,8 +192,14 @@ class ContentProcessor(ABC):
 
 
 class ProcessorRegistry:
-    def __init__(self, processors: Iterable[ContentProcessor] = ()):
+    def __init__(
+        self,
+        processors: Iterable[ContentProcessor] = (),
+        *,
+        security_policy: CoreSecurityPolicy | None = None,
+    ):
         self._processors: dict[str, ContentProcessor] = {}
+        self.security_policy = security_policy or CoreSecurityPolicy()
         for processor in processors:
             self.register(processor)
 
@@ -208,11 +222,30 @@ class ProcessorRegistry:
         return tuple(self._processors.values())
 
     def applicable(self, context: ProcessorContext) -> tuple[ContentProcessor, ...]:
-        return tuple(processor for processor in self._processors.values() if processor.supports(context))
+        return tuple(
+            processor
+            for processor in self._processors.values()
+            if self.security_policy.evaluate(
+                context.security_verdict,
+                SecurityAction.RISKY_PROCESSING,
+                risky=processor.is_risky,
+            ).allowed
+            and processor.supports(context)
+        )
 
     async def process(self, context: ProcessorContext) -> tuple[ProcessorExecutionResult, ...]:
         results = []
-        for processor in self.applicable(context):
+        for processor in self._processors.values():
+            decision = self.security_policy.evaluate(
+                context.security_verdict,
+                SecurityAction.RISKY_PROCESSING,
+                risky=processor.is_risky,
+            )
+            if not decision.allowed:
+                results.append(ProcessorExecutionResult.skipped(processor.identity, decision.reason))
+                continue
+            if not processor.supports(context):
+                continue
             started_at = time.time()
             started = time.perf_counter()
             try:

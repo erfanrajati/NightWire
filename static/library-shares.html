@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08101c"><title>NightWire — Shares</title>
+  <link rel="stylesheet" href="/library/assets/shell.css?v=1.0.2"><link rel="stylesheet" href="/library/assets/browser.css?v=1.0.2">
+</head>
+<body>
+  <main class="shell library-browser-shell">
+    <header class="topbar"><a class="brand" href="/library"><div class="brand-mark"><span></span><span></span><span></span></div><div><p class="eyebrow">PERSONAL CLOUD</p><h1>Library <span>Shares</span></h1></div></a><div class="account-actions"><a href="/library">My Library</a><a href="/workspaces">Workspace</a><button id="logoutButton" type="button">Sign out</button></div></header>
+    <section class="panel trash-intro"><p class="eyebrow">READ-ONLY GRANTS</p><h2>Shares</h2><p>Review grants you created. Protected URLs are shown only once when created because Access Keys are not stored recoverably.</p></section>
+    <p id="notice" class="browser-notice" role="status" hidden></p>
+    <section class="browser-panel panel"><div class="browser-heading"><div><p class="eyebrow">MANAGED SHARES</p><h2>Created by you</h2></div><span id="shareCount">0 shares</span></div><div id="shares" class="detail-list share-management-list"></div><div id="emptyState" class="empty-state" hidden><h3>No shares yet</h3><p>Create a share from a file's details.</p></div></section>
+  </main>
+  <script type="module" src="/library/assets/shares.js?v=1.0.2"></script>
+</body>
+</html>

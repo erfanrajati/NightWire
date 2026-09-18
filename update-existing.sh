@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 # Recursively replace an existing NightWire source or installation with the
-# release containing this script. User uploads, .venv, .git, and .env files are
+# release containing this script. User uploads, Library data, .venv, .git, and .env files are
 # preserved. Add --install to also run the repaired system installer afterward.
 #
 # Examples:
@@ -41,7 +41,7 @@ Options:
   -h, --help               Show this help message.
 
 Preserved paths:
-  files/  .venv/  .git/  .env  .env.*
+  files/  data/  .venv/  .git/  .env  .env.*
 HELP
 }
 
@@ -118,15 +118,16 @@ as_root mkdir -p "$TARGET_DIR"
 while IFS= read -r -d '' item; do
     name="${item##*/}"
     case "$name" in
-        files|.venv|.git|.env|.env.*) continue ;;
+        files|data|.venv|.git|.env|.env.*) continue ;;
     esac
     as_root rm -rf -- "$item"
 done < <(find "$TARGET_DIR" -mindepth 1 -maxdepth 1 -print0)
 
 tar -C "$STAGE_DIR" -cf - . | as_root tar -C "$TARGET_DIR" -xf -
 as_root mkdir -p "$TARGET_DIR/files"
+as_root mkdir -p "$TARGET_DIR/data"
 as_root chown -R "$TARGET_UID:$TARGET_GID" "$TARGET_DIR"
-as_root chmod 0755 "$TARGET_DIR" "$TARGET_DIR/files"
+as_root chmod 0755 "$TARGET_DIR" "$TARGET_DIR/files" "$TARGET_DIR/data"
 
 printf 'Verifying replaced files...\n'
 VERIFY_FAILED=0

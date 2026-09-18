@@ -63,6 +63,31 @@ as_admin() {
     fi
 }
 
+install_linux_prerequisites() {
+    [[ "$(uname -s)" == "Linux" ]] || return 0
+
+    local -a missing_packages=()
+    command -v tar >/dev/null 2>&1 || missing_packages+=(tar)
+    command -v cmp >/dev/null 2>&1 || missing_packages+=(diffutils)
+    command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1 || missing_packages+=(ca-certificates curl)
+    (( ${#missing_packages[@]} > 0 )) || return 0
+
+    printf 'Installing missing system prerequisites: %s\n' "${missing_packages[*]}"
+    local -a admin_command=()
+    if [[ "$EUID" -ne 0 ]]; then
+        command -v sudo >/dev/null 2>&1 || fail "sudo is required to install missing system prerequisites: ${missing_packages[*]}"
+        admin_command=(sudo)
+    fi
+    if command -v apt-get >/dev/null 2>&1; then
+        "${admin_command[@]}" apt-get update
+        "${admin_command[@]}" apt-get install -y --no-install-recommends "${missing_packages[@]}"
+    elif command -v dnf >/dev/null 2>&1; then
+        "${admin_command[@]}" dnf install -y "${missing_packages[@]}"
+    else
+        fail "Install these prerequisites and run the installer again: ${missing_packages[*]} (supported package managers: apt-get and dnf)."
+    fi
+}
+
 if [[ -n "${SUDO_USER:-}" && "$SUDO_USER" != "root" ]]; then
     INSTALL_USER="$SUDO_USER"
 else
@@ -98,6 +123,7 @@ printf 'Command: %s\n\n' "$COMMAND_PATH"
 [[ -f "$SOURCE_DIR/pyproject.toml" ]] || fail "pyproject.toml was not found."
 [[ -f "$SOURCE_DIR/uv.lock" ]] || fail "uv.lock was not found."
 [[ -d "$SOURCE_DIR/static" ]] || fail "the static directory was not found."
+install_linux_prerequisites
 command -v tar >/dev/null 2>&1 || fail "tar is required."
 command -v cmp >/dev/null 2>&1 || fail "cmp is required."
 if (( USE_SUDO == 1 )); then
@@ -188,15 +214,16 @@ if command -v pgrep >/dev/null 2>&1; then
     RUNNING_PIDS="$(pgrep -f "${INSTALL_DIR}/app.py" 2>/dev/null | tr '\n' ' ' || true)"
 fi
 
-# Preserve uploaded files, local configuration, and the uv environment. All
+# Preserve uploaded files, Library data, local configuration, and the uv environment. All
 # application code is replaced so removed frontend or backend files cannot linger.
 as_admin install -d -m 0755 "$INSTALL_DIR"
 as_admin install -d -m 0755 "$INSTALL_DIR/files"
+as_admin install -d -m 0755 "$INSTALL_DIR/data"
 
 while IFS= read -r -d '' item; do
     name="${item##*/}"
     case "$name" in
-        files|.venv|.env|.env.*) continue ;;
+        files|data|.venv|.env|.env.*) continue ;;
     esac
     as_admin rm -rf -- "$item"
 done < <(find "$INSTALL_DIR" -mindepth 1 -maxdepth 1 -print0)
@@ -206,11 +233,14 @@ tar -C "$STAGE_DIR" -cf - . | as_admin tar -C "$INSTALL_DIR" -xf -
 if [[ -d "$SOURCE_DIR/files" && "$SOURCE_DIR" != "$INSTALL_DIR" ]]; then
     as_admin cp -an "$SOURCE_DIR/files/." "$INSTALL_DIR/files/" 2>/dev/null || true
 fi
+if [[ -d "$SOURCE_DIR/data" && "$SOURCE_DIR" != "$INSTALL_DIR" ]]; then
+    as_admin cp -an "$SOURCE_DIR/data/." "$INSTALL_DIR/data/" 2>/dev/null || true
+fi
 
 if [[ "$EUID" -eq 0 || "$USE_SUDO" -eq 1 ]]; then
     as_admin chown -R "$INSTALL_USER:$INSTALL_GROUP" "$INSTALL_DIR"
 fi
-as_admin chmod 0755 "$INSTALL_DIR" "$INSTALL_DIR/files"
+as_admin chmod 0755 "$INSTALL_DIR" "$INSTALL_DIR/files" "$INSTALL_DIR/data"
 
 printf 'Verifying installed files...\n'
 VERIFY_FAILED=0

@@ -9,6 +9,7 @@ import app
 from nightwire.core.config import (
     DeploymentProfile,
     InstalledModules,
+    RegistrationPolicy,
     load_application_config,
     load_port,
 )
@@ -30,9 +31,31 @@ class ApplicationConfigTests(unittest.TestCase):
             self.assertEqual(settings.version, "1.0.2")
             self.assertEqual(settings.installed_modules, InstalledModules(drop=True, library=True))
             self.assertEqual(settings.deployment_profile, DeploymentProfile.TRUSTED_PRIVATE)
+            self.assertEqual(settings.database_url, f"sqlite:///{base_dir.resolve()}/data/nightwire-library.db")
+            self.assertEqual(settings.library_registration_policy, RegistrationPolicy.OPEN)
             self.assertEqual(settings.chunk_hint, 1024 * 1024)
             self.assertEqual(settings.clipboard_default_expiry_seconds, 600)
-            self.assertEqual(settings.file_default_expiry_seconds, 0)
+            self.assertEqual(settings.file_default_expiry_seconds, 3600)
+            self.assertEqual(settings.anonymous_internet_drop_max_expiry_seconds, 86400)
+            self.assertFalse(settings.trusted_network_relaxed_access)
+            self.assertTrue(settings.trusted_network_active_drop_browsing)
+            self.assertEqual(settings.installation_max_bytes, 0)
+            self.assertEqual(settings.maximum_object_bytes, 0)
+
+    def test_storage_limits_are_independently_configurable(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            settings = load_application_config({
+                "NIGHTWIRE_INSTALLATION_MAX_BYTES": "100",
+                "NIGHTWIRE_PERSONAL_LIBRARY_QUOTA_BYTES": "101",
+                "NIGHTWIRE_WORKSPACE_QUOTA_BYTES": "102",
+                "NIGHTWIRE_DROP_QUOTA_BYTES": "103",
+                "NIGHTWIRE_MAXIMUM_OBJECT_BYTES": "104",
+                "NIGHTWIRE_MINIMUM_HOST_FREE_BYTES": "105",
+            }, base_dir=temporary, create_files_directory=False)
+        self.assertEqual((settings.installation_max_bytes, settings.personal_library_quota_bytes,
+                          settings.workspace_quota_bytes, settings.drop_quota_bytes,
+                          settings.maximum_object_bytes, settings.minimum_host_free_bytes),
+                         (100, 101, 102, 103, 104, 105))
 
     def test_missing_version_keeps_development_fallback(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -79,6 +102,29 @@ class ApplicationConfigTests(unittest.TestCase):
                     create_files_directory=False,
                 )
 
+    def test_trusted_network_policy_switches_are_independently_configurable(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            settings = load_application_config(
+                {
+                    "NIGHTWIRE_TRUSTED_RELAX_ACCESS_KEYS": "yes",
+                    "NIGHTWIRE_TRUSTED_ACTIVE_DROP_BROWSING": "off",
+                },
+                base_dir=temporary,
+                create_files_directory=False,
+            )
+
+        self.assertTrue(settings.trusted_network_relaxed_access)
+        self.assertFalse(settings.trusted_network_active_drop_browsing)
+
+    def test_invalid_trusted_network_policy_switch_fails_configuration(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            with self.assertRaisesRegex(ValueError, "NIGHTWIRE_TRUSTED_RELAX_ACCESS_KEYS"):
+                load_application_config(
+                    {"NIGHTWIRE_TRUSTED_RELAX_ACCESS_KEYS": "maybe"},
+                    base_dir=temporary,
+                    create_files_directory=False,
+                )
+
     def test_deployment_profile_distinguishes_private_and_internet_facing(self):
         with tempfile.TemporaryDirectory() as temporary:
             trusted = load_application_config(
@@ -103,6 +149,30 @@ class ApplicationConfigTests(unittest.TestCase):
                     base_dir=temporary,
                     create_files_directory=False,
                 )
+
+    def test_internet_profile_defaults_to_approval_and_policy_can_be_overridden(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            restrictive = load_application_config(
+                {"NIGHTWIRE_DEPLOYMENT_PROFILE": "internet-facing"},
+                base_dir=temporary,
+                create_files_directory=False,
+            )
+            invitation = load_application_config(
+                {
+                    "NIGHTWIRE_DEPLOYMENT_PROFILE": "internet-facing",
+                    "NIGHTWIRE_LIBRARY_REGISTRATION_POLICY": "invitation_only",
+                    "NIGHTWIRE_DATABASE_URL": "sqlite:///:memory:",
+                },
+                base_dir=temporary,
+                create_files_directory=False,
+            )
+
+        self.assertEqual(
+            restrictive.library_registration_policy,
+            RegistrationPolicy.ADMINISTRATOR_APPROVED,
+        )
+        self.assertEqual(invitation.library_registration_policy, RegistrationPolicy.INVITATION_ONLY)
+        self.assertEqual(invitation.database_url, "sqlite:///:memory:")
 
     def test_port_loading_preserves_integer_conversion_and_call_time_default(self):
         self.assertEqual(load_port({}, default=9000), 9000)
@@ -140,6 +210,10 @@ class ConfigurationInfoResponseTests(unittest.TestCase):
 
         self.assertEqual(payload["installed_modules"], {"drop": True, "library": True})
         self.assertEqual(payload["deployment_profile"], "trusted-private")
+        self.assertEqual(payload["file_default_expiry_seconds"], 3600)
+        self.assertEqual(payload["drop_max_expiry_seconds"], 31_536_000)
+        self.assertTrue(payload["drop_access_key_required"])
+        self.assertFalse(payload["active_drop_browsing"])
 
 
 if __name__ == "__main__":

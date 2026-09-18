@@ -47,7 +47,7 @@ The interface is divided into three focused pages:
 
 ### 📁 LAN-speed file sharing
 
-Uploads stream directly to disk and downloads stay inside your local network. Files default to unlimited retention.
+Files, pasted text, and browser-recorded voice messages use the same streamed Core storage pipeline. Every new Drop gets a copyable share link and exact-link QR, and defaults to a one-hour lifetime.
 
 </td>
 <td width="50%" valign="top">
@@ -61,9 +61,9 @@ Share links, commands, notes, and code snippets between connected browsers. Text
 <tr>
 <td width="50%" valign="top">
 
-### 🔐 Optional protection
+### 🔐 Private share access
 
-A password can be set when a file or text item is created. Protection is immutable afterward and passwords are stored as salted `scrypt` hashes.
+New Drops use cryptographically random Access Keys stored only as salted digests. An optional password can add a second check; trusted/private operators may explicitly relax key checks.
 
 </td>
 <td width="50%" valign="top">
@@ -97,7 +97,7 @@ Built with Python, Starlette, Uvicorn, and a dependency-light frontend. File met
 - Python `3.11` or newer
 - [`uv`](https://docs.astral.sh/uv/) (installed automatically by the installers)
 - A modern browser on the host or another device on the same network
-- On Fedora, Ubuntu, or macOS: `bash`, `tar`, `cmp`, and `curl` or `wget`
+- On Debian, Ubuntu, Fedora, or macOS: `bash`, `tar`, `cmp`, and `curl` or `wget` (the Linux installer installs missing prerequisites with `apt-get` or `dnf`)
 - On Windows: Windows PowerShell 5.1+ or PowerShell 7+
 
 NightWire listens on all network interfaces and uses port `8080` by default.
@@ -130,12 +130,12 @@ PORT=9000 ./run.sh
 NIGHTWIRE_PORT=9000 ./run.sh
 ```
 
-### Install on Fedora, Ubuntu, or macOS
+### Install on Debian, Ubuntu, Fedora, or macOS
 
 The Unix installer stages and verifies the release before replacing the installed application. If `uv` is missing, it downloads the official standalone installer first. Its defaults are:
 
 ```text
-Fedora/Ubuntu app:  /srv/nightwire
+Debian/Ubuntu/Fedora app: /srv/nightwire
 macOS app:          /usr/local/share/nightwire
 Command:            /usr/local/bin/nightwire
 ```
@@ -231,6 +231,8 @@ Some routers enable client or access-point isolation, preventing devices on the 
 NightWire is intentionally LAN-first and does not provide user accounts or per-device authorization.
 
 - Passwords are optional and selected when an item is created.
+- Every new Drop receives an Access Key; only the complete share URL can download it.
+- Raw Access Keys are returned once and are not persisted by NightWire.
 - A password cannot later be added, changed, or removed.
 - Protected downloads, clipboard reveals, and deletion require the password.
 - Any connected client may change an item's auto-delete countdown.
@@ -238,7 +240,11 @@ NightWire is intentionally LAN-first and does not provide user accounts or per-d
 - Protected clipboard plaintext is withheld from synchronization responses until unlocked.
 - File lifecycle, object-ID, size, and SHA-256 metadata is stored in `files/.nightwire-metadata.json`.
 - New uploads use opaque permanent objects in `files/.nightwire-objects/` and isolated temporary storage in `files/.nightwire-uploads/`; original filenames remain visible download names.
-- Core detects MIME from stored bytes and records normalized security evidence; no malware scanner or verdict-based blocking is enabled by default.
+- New Drops default to one hour and always have an explicit expiry. Internet-facing anonymous Drops are capped at 24 hours.
+- The Secure Drop screen starts with one burn-time control, a file/voice row, and a larger text area; file selection needs only a tap or drop, and voice capture includes a live intensity matrix.
+- Active-Drop browsing requires trusted/private mode plus both trusted policy switches, keeping persistent link/QR/download actions coherent; internet-facing deployments always enforce keys and hide the active directory.
+- Recipient pages preview shared images for mobile gallery saving and use a custom cross-device voice player backed by explicit `blob:` media policy.
+- Core detects MIME from stored bytes, invokes an optional scanner, and records normalized security evidence. Non-clean states are visible; malicious content is retained but cannot enter risky processors and requires a deliberate hold before download.
 - Processor contracts record implementation versions and future derived objects; security-sensitive execution is deny-by-default until a real sandbox is configured.
 - Clipboard entries remain in server memory and disappear when the process restarts.
 
@@ -260,6 +266,8 @@ NightWire/
 │   ├── index.html            # Files, Clipboard, and Clients views
 │   ├── app.js                # Shared browser application shell
 │   ├── drop.js               # Drop-owned behavior and synchronization
+│   ├── drop-share.html       # Access-Key recipient page
+│   ├── drop-share.js         # Recipient metadata and download flow
 │   ├── styles.css            # Responsive aurora interface
 │   └── assets/logo.svg       # Project logo
 ├── files/                    # Preserved Core storage root and legacy shared files
